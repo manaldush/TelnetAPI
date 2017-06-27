@@ -4,7 +4,7 @@ package com.manaldush.telnet.exceptions;
  * Parent exception for this package exceptions.
  * Created by Maxim.Melnikov on 07.06.2017.
  */
-class GeneralTelnetException extends Exception {
+public class GeneralTelnetException extends Exception {
 
     GeneralTelnetException() {
         super();

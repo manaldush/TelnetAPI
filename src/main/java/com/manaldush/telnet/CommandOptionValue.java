@@ -6,7 +6,7 @@ import com.google.common.base.Preconditions;
  * Option value for command.
  * Created by Maxim.Melnikov on 06.06.2017.
  */
-final class CommandOptionValue {
+public final class CommandOptionValue {
     private final String value;
     private final CommandOption option;
 
@@ -20,13 +20,13 @@ final class CommandOptionValue {
         option = _option;
     }
 
-    static CommandOptionValue build(final String _value, final CommandOption _option) {
+    public static CommandOptionValue build(final String _value, final CommandOption _option) {
         Preconditions.checkNotNull(_option);
         Preconditions.checkNotNull(_value);
         return new CommandOptionValue(_value, _option);
     }
 
-    static CommandOptionValue build(final CommandOption _option) {
+    public static CommandOptionValue build(final CommandOption _option) {
         Preconditions.checkNotNull(_option);
         return new CommandOptionValue(_option);
     }

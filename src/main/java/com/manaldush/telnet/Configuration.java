@@ -14,6 +14,7 @@ public final class Configuration implements Cloneable {
     /**Server address*/
     private final InetAddress address;
     private final int port;
+    private ICommandParserFactory parser = new DefaultCommandParserFactory();
 
     private Integer SO_SNDBUF = 1024;
 
@@ -38,39 +39,53 @@ public final class Configuration implements Cloneable {
     public static Configuration build(final String _addr, final int _port) throws UnknownHostException {
         Preconditions.checkNotNull(_addr);
         Preconditions.checkArgument(0 < _port);
-        Preconditions.checkArgument(_port >= 65535);
+        Preconditions.checkArgument(_port <= 65535);
         return new Configuration(InetAddress.getByName(_addr), _port);
     }
 
     public Configuration setSNDBUF(final Integer SO_SNDBUF) {
+        Preconditions.checkNotNull(SO_SNDBUF);
+        Preconditions.checkArgument(SO_SNDBUF > 0);
         this.SO_SNDBUF = SO_SNDBUF;
         return this;
     }
 
     public Configuration setRCVBUF(final Integer SO_RCVBUF) {
+        Preconditions.checkNotNull(SO_RCVBUF);
+        Preconditions.checkArgument(SO_RCVBUF > 0);
         this.SO_RCVBUF = SO_RCVBUF;
         return this;
     }
 
     public Configuration setREUSEADDR(final Boolean SO_REUSEADDR) {
+        Preconditions.checkNotNull(SO_REUSEADDR);
         this.SO_REUSEADDR = SO_REUSEADDR;
         return this;
     }
 
     public Configuration setTCPNODELAY(final Boolean TCP_NODELAY) {
+        Preconditions.checkNotNull(TCP_NODELAY);
         this.TCP_NODELAY = TCP_NODELAY;
         return this;
     }
 
     public Configuration setMaxSessions(int _maxSessions) {
+        Preconditions.checkArgument(_maxSessions >= 0);
         maxSessions = _maxSessions;
+        return this;
+    }
+
+    public Configuration setParser(final ICommandParserFactory _parser) {
+        Preconditions.checkNotNull(_parser);
+        parser = _parser;
         return this;
     }
 
     @Override
     public Object clone() {
         Configuration conf = new Configuration(this.address, this.port);
-        return conf.setRCVBUF(SO_RCVBUF).setSNDBUF(SO_SNDBUF).setREUSEADDR(SO_REUSEADDR).setTCPNODELAY(TCP_NODELAY).setMaxSessions(maxSessions);
+        return conf.setRCVBUF(SO_RCVBUF).setSNDBUF(SO_SNDBUF).setREUSEADDR(SO_REUSEADDR).setTCPNODELAY(TCP_NODELAY).
+                setMaxSessions(maxSessions).setParser(parser);
     }
 
     public InetAddress getAddress() {
@@ -99,5 +114,9 @@ public final class Configuration implements Cloneable {
 
     public int getMaxSessions() {
         return maxSessions;
+    }
+
+    public ICommandParserFactory getParser() {
+        return parser;
     }
 }

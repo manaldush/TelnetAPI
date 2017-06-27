@@ -51,9 +51,9 @@ public final class CommandTemplate {
         Preconditions.checkNotNull(_description);
         Preconditions.checkArgument(!_command.isEmpty());
         if (_options == null || _options.isEmpty())
-            return CommandTemplate.build(_command, _description, _commandProcessorFactory);
+            return new CommandTemplate(_command, _description, null, _commandProcessorFactory);
         else
-            return new CommandTemplate(_command, _description, new ArrayList<CommandOption>(_options), _commandProcessorFactory);
+            return new CommandTemplate(_command, _description, new ArrayList<>(_options), _commandProcessorFactory);
     }
 
     /**
@@ -93,5 +93,13 @@ public final class CommandTemplate {
 
     public ICommandProcessorFactory getCommandProcessorFactory() {
         return commandProcessorFactory;
+    }
+
+    public CommandOption hasOption(String _name) {
+        if (options == null) return null;
+        for (CommandOption option:options) {
+            if (option.getOption().compareTo(_name) == 0) return option;
+        }
+        return null;
     }
 }

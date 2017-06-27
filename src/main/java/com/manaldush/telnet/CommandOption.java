@@ -7,7 +7,7 @@ import com.google.common.base.Preconditions;
  * Created by Maxim.Melnikov on 06.06.2017.
  */
 public final class CommandOption {
-    private final static String OPTION_REGEXP = "[a-z]";
+    private final static String OPTION_REGEXP = "[a-z]{1,5}";
     /**Name of option.*/
     private final String option;
     /**Option Description.*/

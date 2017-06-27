@@ -16,14 +16,14 @@ public interface ICommandProcessor {
      * @throws OperationException - any telnet operation exception
      * @throws IOException - IO errors
      */
-    void process() throws OperationException, IOException;
+    void process() throws OperationException;
 
     /**
      * Abort output of command.
      * @throws AbortOutputProcessException - any telnet operation exception
      * @throws IOException - IO errors
      */
-    void abortOutput() throws AbortOutputProcessException, IOException;
+    void abortOutput() throws AbortOutputProcessException;
 
     /**
      * Interrupt current process.

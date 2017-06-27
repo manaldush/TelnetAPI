@@ -48,13 +48,5 @@ public interface IController<E extends Cloneable> {
      * Configure Controller object.
      * @param _conf - configuration object
      */
-    void configure(E _conf);
-
-    /**
-     * Build connection.
-     * @return connection
-     * @throws ConfigurationException - configuration exception
-     * @throws IOException - IO error
-     */
-    IConnection buildConnection() throws ConfigurationException, IOException;
+    void configure(E _conf) throws ConfigurationException;
 }
