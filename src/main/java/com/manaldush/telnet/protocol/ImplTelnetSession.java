@@ -36,22 +36,25 @@ final class ImplTelnetSession implements ISession {
     @Override
     public void addBuffer(byte _b) {
         if (buffer == null) buffer = ByteBuffer.allocate(initBufferSize);
-        else {
-            if (buffer.remaining() > 0) {
-                buffer.put(_b);
-            } else {
-                buffer.flip();
-                ByteBuffer nbuffer = ByteBuffer.allocate(buffer.capacity() + initBufferSize);
-                nbuffer.put(buffer);
-                nbuffer.put(_b);
-                buffer = nbuffer;
-            }
+        if (buffer.remaining() > 0) {
+            buffer.put(_b);
+        } else {
+            buffer.flip();
+            ByteBuffer nbuffer = ByteBuffer.allocate(buffer.capacity() + initBufferSize);
+            nbuffer.put(buffer);
+            nbuffer.put(_b);
+            buffer = nbuffer;
         }
     }
 
     @Override
     public ByteBuffer getBuffer() {
-        return buffer;
+        //return copy
+        if (buffer == null) return null;
+        ByteBuffer nbuffer = ByteBuffer.allocate(buffer.capacity());
+        nbuffer.put(buffer.array());
+        nbuffer.position(buffer.position());
+        return nbuffer;
     }
 
     @Override
@@ -146,6 +149,9 @@ final class ImplTelnetSession implements ISession {
                     currentTask.process();
                 } catch (OperationException ex) {
                     ex.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    close();
                 }
             }
         }

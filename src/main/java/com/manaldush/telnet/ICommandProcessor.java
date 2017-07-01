@@ -16,7 +16,7 @@ public interface ICommandProcessor {
      * @throws OperationException - any telnet operation exception
      * @throws IOException - IO errors
      */
-    void process() throws OperationException;
+    void process() throws OperationException, IOException;
 
     /**
      * Abort output of command.

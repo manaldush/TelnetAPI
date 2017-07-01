@@ -1,6 +1,5 @@
 package com.manaldush.telnet.protocol.processors;
 
-import com.google.common.base.Preconditions;
 import com.manaldush.telnet.exceptions.GeneralTelnetException;
 import com.manaldush.telnet.protocol.Constants;
 import com.manaldush.telnet.protocol.ITelnetCommandProcessor;
@@ -24,16 +23,20 @@ public final class NegotiationOptionsProcessor implements ITelnetCommandProcesso
         channel = _channel;
     }
 
-    public static NegotiationOptionsProcessor build(final int _cmd, final int _option, SocketChannel _channel) {
-        Preconditions.checkArgument(_cmd == Constants.WILL || _cmd == Constants.WILL_NOT ||
-                _cmd == Constants.DO || _cmd == Constants.DO_NOT);
-        COMMAND_TYPE cmdType = null;
-        if (_cmd == Constants.WILL) cmdType = COMMAND_TYPE.WILL;
-        else if (_cmd == Constants.WILL_NOT) cmdType = COMMAND_TYPE.WILL_NOT;
-        else if (_cmd == Constants.DO) cmdType = COMMAND_TYPE.DO;
-        else if (_cmd == Constants.DO_NOT) cmdType = COMMAND_TYPE.DO_NOT;
-        Preconditions.checkNotNull(cmdType);
-        return new NegotiationOptionsProcessor(cmdType, _option, _channel);
+    public static NegotiationOptionsProcessor buildDO(final int _option, SocketChannel _channel) {
+        return new NegotiationOptionsProcessor(COMMAND_TYPE.DO, _option, _channel);
+    }
+
+    public static NegotiationOptionsProcessor buildDONOT(final int _option, SocketChannel _channel) {
+        return new NegotiationOptionsProcessor(COMMAND_TYPE.DO_NOT, _option, _channel);
+    }
+
+    public static NegotiationOptionsProcessor buildWILL(final int _option, SocketChannel _channel) {
+        return new NegotiationOptionsProcessor(COMMAND_TYPE.WILL, _option, _channel);
+    }
+
+    public static NegotiationOptionsProcessor buildWILLNOT(final int _option, SocketChannel _channel) {
+        return new NegotiationOptionsProcessor(COMMAND_TYPE.WILL_NOT, _option, _channel);
     }
 
     @Override

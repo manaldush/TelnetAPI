@@ -22,7 +22,7 @@ public class CommandTest {
         optionValues.add(optionValue);
         CommandTemplate template = CommandTemplate.build("test command", "description", new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd) {
+            public ICommandProcessor build(Command _cmd, IWriterAdapter _adapter) {
                 return null;
             }
         });
@@ -41,7 +41,7 @@ public class CommandTest {
         optionValues.add(optionValue);
         CommandTemplate template = CommandTemplate.build("test command", "description", options, new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd) {
+            public ICommandProcessor build(Command _cmd, IWriterAdapter _adapter) {
                 return null;
             }
         });
@@ -57,7 +57,7 @@ public class CommandTest {
         options.add(option);
         CommandTemplate template = CommandTemplate.build("test command", "description", options, new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd) {
+            public ICommandProcessor build(Command _cmd, IWriterAdapter _adapter) {
                 return null;
             }
         });
@@ -75,7 +75,7 @@ public class CommandTest {
         options.add(option);
         CommandTemplate template = CommandTemplate.build("test command", "description", options, new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd) {
+            public ICommandProcessor build(Command _cmd, IWriterAdapter _adapter) {
                 return null;
             }
         });

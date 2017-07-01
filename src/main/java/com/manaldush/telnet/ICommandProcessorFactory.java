@@ -9,5 +9,5 @@ public interface ICommandProcessorFactory {
      * @param _cmd - command object
      * @return command processor object
      */
-    ICommandProcessor build(Command _cmd);
+    ICommandProcessor build(Command _cmd, IWriterAdapter _writer);
 }

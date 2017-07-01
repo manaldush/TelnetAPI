@@ -1,8 +1,6 @@
 package com.manaldush.telnet;
 
 import com.manaldush.telnet.exceptions.ConfigurationException;
-
-import java.io.IOException;
 import java.text.ParseException;
 
 /**

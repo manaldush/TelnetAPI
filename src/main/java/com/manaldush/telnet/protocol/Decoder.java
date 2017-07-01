@@ -34,14 +34,13 @@ final class Decoder implements IDecoder {
     public String decode(final ByteBuffer _buffer, final int _bytesNum) throws GeneralTelnetException, IOException {
         for(int counter=0;counter < _bytesNum;counter++) {
             byte b = _buffer.get(counter);
-            int ib = (int) b;
-            if (IAC_FLAG && ib == Constants.IAC) {
+            if (IAC_FLAG && (b & 0xFF) == Constants.IAC) {
                 reset();
                 resetCR();
                 session.addBuffer(b);
-            } else if(!IAC_FLAG && ib == Constants.IAC) {
+            } else if(!IAC_FLAG && (b & 0xFF) == Constants.IAC) {
                 IAC_FLAG = true;
-            } else if (IAC_FLAG && ib != Constants.IAC) {
+            } else if (IAC_FLAG && (b & 0xFF) != Constants.IAC) {
                 if (cmd == RESET_BYTE_VALUE) {
                     cmd = b;
                     decodeCommand();
@@ -51,9 +50,9 @@ final class Decoder implements IDecoder {
                 }
             } else {
                 reset();
-                if (ib  == Constants.CR) {
+                if ((b & 0xFF) == Constants.CR) {
                     CR_FLAG = true;
-                } else if (ib == Constants.LF && CR_FLAG) {
+                } else if ((b & 0xFF) == Constants.LF && CR_FLAG) {
                     ByteBuffer buffer = session.getBuffer();
                     session.resetBuffer();
                     resetCR();
@@ -77,27 +76,44 @@ final class Decoder implements IDecoder {
     }
 
     private void decodeCommand() throws GeneralTelnetException, IOException {
-        int icmd = (int) cmd;
-        if (icmd == Constants.Abort_Output){
+        int bCmd = cmd & 0xFF;
+        if (bCmd == Constants.Abort_Output){
             AbortOutputProcessor.build(session).process();
             reset();
-        } else if (icmd == Constants.Interrupt_Process) {
+        } else if (bCmd == Constants.Interrupt_Process) {
             InterruptionProcessor.build(session).process();
             reset();
-        } else if (icmd == Constants.Are_You_There) {
+        } else if (bCmd == Constants.Are_You_There) {
             KeepAliveProcessor.build(channel).process();
             reset();
-        } else if (icmd == Constants.Erase_Line) {
+        } else if (bCmd == Constants.Erase_Line) {
             EraseLineProcessor.build(session).process();
             reset();
-        } else if (icmd == Constants.Erase_character) {
+        } else if (bCmd == Constants.Erase_character) {
             EraseCharacterProcessor.build(session).process();
             reset();
-        } else if (icmd == Constants.WILL_NOT || icmd == Constants.WILL || icmd == Constants.DO_NOT || icmd == Constants.DO) {
-            if (option == RESET_BYTE_VALUE) {
-                return;
-            } else {
-                NegotiationOptionsProcessor.build(icmd, option, channel).process();
+        } else if(bCmd == Constants.WILL_NOT) {
+            if (option == RESET_BYTE_VALUE) return;
+            else {
+                NegotiationOptionsProcessor.buildWILLNOT(option, channel).process();
+                reset();
+            }
+        } else if (bCmd == Constants.WILL) {
+            if (option == RESET_BYTE_VALUE) return;
+            else {
+                NegotiationOptionsProcessor.buildWILL(option, channel).process();
+                reset();
+            }
+        } else if (bCmd == Constants.DO_NOT) {
+            if (option == RESET_BYTE_VALUE) return;
+            else {
+                NegotiationOptionsProcessor.buildDONOT(option, channel).process();
+                reset();
+            }
+        } else if (bCmd == Constants.DO) {
+            if (option == RESET_BYTE_VALUE) return;
+            else {
+                NegotiationOptionsProcessor.buildDO(option, channel).process();
                 reset();
             }
         }

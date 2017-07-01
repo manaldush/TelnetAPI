@@ -23,6 +23,6 @@ public final class EraseCharacterProcessor implements ITelnetCommandProcessor {
     }
     @Override
     public void process() throws IOException, GeneralTelnetException {
-
+        session.eraseCharacter();
     }
 }

@@ -15,7 +15,7 @@ public class CommandTemplateTest {
     public void test_1() {
         CommandTemplate template = CommandTemplate.build("command test", "description", new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd) {
+            public ICommandProcessor build(Command _cmd, IWriterAdapter _adapter) {
                 return null;
             }
         });
@@ -33,7 +33,7 @@ public class CommandTemplateTest {
         options.add(option);
         CommandTemplate template = CommandTemplate.build("command test", "description", options, new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd) {
+            public ICommandProcessor build(Command _cmd, IWriterAdapter _adapter) {
                 return null;
             }
         });
