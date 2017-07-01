@@ -190,7 +190,8 @@ public class ImplControllerTest {
         Field field = controller.getClass().getDeclaredField("DATA_PORTION");
         field.setAccessible(true);
         int data_portion = field.getInt(controller);
-        PowerMockito.when(context.getKey().attachment()).thenReturn(ImplController.SOCKET_TYPE.CLIENT);
+        PowerMockito.when(context.getKey().isAcceptable()).thenReturn(false);
+        PowerMockito.when(context.getKey().isReadable()).thenReturn(true);
         PowerMockito.when(context.getKey().channel()).thenReturn(context.getChannel());
         PowerMockito.when(context.getChannel().read(any(ByteBuffer.class))).thenReturn(data_portion).thenReturn(0);
         // mock session object for returning decoding string
@@ -264,7 +265,8 @@ public class ImplControllerTest {
         field.set(controller, confWrapper);
         // SelectionKey check
         SelectionKey key = PowerMockito.mock(SelectionKey.class);
-        PowerMockito.when(key.attachment()).thenReturn(ImplController.SOCKET_TYPE.SERVER);
+        PowerMockito.when(key.isReadable()).thenReturn(false);
+        PowerMockito.when(key.isAcceptable()).thenReturn(true);
         Set<SelectionKey> keys = new HashSet<>();
         keys.add(key);
         PowerMockito.when(selector.select(anyInt())).thenReturn(1);

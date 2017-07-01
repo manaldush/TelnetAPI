@@ -12,4 +12,6 @@ public interface IWriterAdapter {
      * @throws IOException - IO Exception
      */
     void write(final String _msg) throws IOException;
+
+    void write(final byte[] _b) throws IOException;
 }

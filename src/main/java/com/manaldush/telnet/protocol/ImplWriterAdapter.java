@@ -35,8 +35,22 @@ final class ImplWriterAdapter implements IWriterAdapter {
     @Override
     public void write(String _msg) throws IOException {
         byte[] b = _msg.getBytes(DEFAULT_CHARSET);
-        ByteBuffer buffer = ByteBuffer.allocate(b.length);
+        ByteBuffer buffer = ByteBuffer.allocate(b.length + 2);
         buffer.put(b);
+        buffer.put((byte)Constants.CR);
+        buffer.put((byte)Constants.LF);
+        buffer.flip();
+        innerWrite(buffer);
+    }
+
+    @Override
+    public void write(byte[] _b) throws IOException {
+        ByteBuffer buffer = ByteBuffer.allocate(_b.length);
+        buffer.put(_b);
+        innerWrite(buffer);
+    }
+
+    private void innerWrite(ByteBuffer buffer) throws IOException {
         try {
             channel.write(buffer);
         } catch (IOException ex) {

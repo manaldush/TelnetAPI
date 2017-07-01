@@ -25,9 +25,6 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
     enum STATUS {
         STARTED, STOPPED, CONFIGURED, INITIALIZE,
     }
-    enum SOCKET_TYPE {
-        CLIENT, SERVER
-    }
     private final static SocketOption<Boolean> SO_REUSEADDR_OPT    = StandardSocketOptions.SO_REUSEADDR;
     private final static SocketOption<Integer> SO_RCVBUF_OPT       = StandardSocketOptions.SO_RCVBUF;
     private final static SocketOption<Integer> SO_SNDBUF_OPT       = StandardSocketOptions.SO_SNDBUF;
@@ -67,7 +64,7 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         ss.bind(new InetSocketAddress(conf.getConf().getAddress(), conf.getConf().getPort()));
         ss.configureBlocking(false);
         selector = Selector.open();
-        ss.register(selector, SelectionKey.OP_ACCEPT, SOCKET_TYPE.SERVER);
+        ss.register(selector, SelectionKey.OP_ACCEPT);
         this.conf = _conf;
         this.ss = ss;
     }
@@ -235,7 +232,7 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         _channel.setOption(SO_SNDBUF_OPT, conf.getConf().getSO_SNDBUF());
         _channel.setOption(TCP_NODELAY_OPT, conf.getConf().getTCP_NODELAY());
         _channel.setOption(SO_KEEPALIVE_OPT, true);
-        _channel.register(selector, SelectionKey.OP_READ, SOCKET_TYPE.CLIENT);
+        _channel.register(selector, SelectionKey.OP_READ);
     }
 
     private boolean acceptSession() {
