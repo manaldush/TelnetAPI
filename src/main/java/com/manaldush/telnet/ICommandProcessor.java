@@ -7,7 +7,7 @@ import com.manaldush.telnet.exceptions.OperationException;
 import java.io.IOException;
 
 /**
- * Process of telnet command.
+ * Processor of telnet command.
  * Created by Maxim.Melnikov on 20.06.2017.
  */
 public interface ICommandProcessor {

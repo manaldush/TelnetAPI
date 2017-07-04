@@ -15,14 +15,14 @@ public class CommandTemplateTest {
     public void test_1() {
         CommandTemplate template = CommandTemplate.build("command test", "description", new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd, IWriterAdapter _adapter) {
+            public ICommandProcessor build(Command _cmd, IClientSession _adapter) {
                 return null;
             }
         });
         assertTrue(template.getCommand().compareTo("command test") == 0);
         assertTrue(template.getDescription().compareTo("description") == 0);
         assertTrue(template.getCommandProcessorFactory() != null);
-        assertTrue(template.getFullDescription().compareTo("description\r\n") == 0);
+        assertTrue(template.getFullDescription().compareTo("command test - description") == 0);
         assertTrue(template.hasOption("test") == null);
     }
 
@@ -33,14 +33,15 @@ public class CommandTemplateTest {
         options.add(option);
         CommandTemplate template = CommandTemplate.build("command test", "description", options, new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd, IWriterAdapter _adapter) {
+            public ICommandProcessor build(Command _cmd, IClientSession _adapter) {
                 return null;
             }
         });
         assertTrue(template.getCommand().compareTo("command test") == 0);
         assertTrue(template.getDescription().compareTo("description") == 0);
         assertTrue(template.getCommandProcessorFactory() != null);
-        assertTrue(template.getFullDescription().compareTo("description\r\noption description\r\n") == 0);
+        assertTrue(template.getFullDescription().compareTo("command test - description\r\n" +
+                "        test - option description") == 0);
         assertTrue(template.hasOption("test") == option);
         assertTrue(template.hasOption("failed") == null);
     }

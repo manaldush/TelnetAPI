@@ -1,36 +1,43 @@
 package com.manaldush.telnet.protocol;
 
+import com.manaldush.telnet.Command;
 import com.manaldush.telnet.ICommandProcessor;
+import com.manaldush.telnet.IClientSession;
 import com.manaldush.telnet.exceptions.AbortOutputProcessException;
 import com.manaldush.telnet.exceptions.GeneralTelnetException;
 import com.manaldush.telnet.exceptions.InterruptProcessException;
 import com.manaldush.telnet.exceptions.OperationException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Created by Maxim.Melnikov on 22.06.2017.
  */
-final class ImplTelnetSession implements ISession {
+final class ImplTelnetClientSession implements IClientSession {
+    private static final Charset DEFAULT_CHARSET = Charset.forName("ASCII");
     private ByteBuffer buffer = null;
     private final List<ICommandProcessor> tasks = new ArrayList<>();
     private final SocketChannel channel;
     private final ImplController controller;
     private final int initBufferSize;
+    private final SelectionKey key;
     private ICommandProcessor currentTask = null;
     private Thread currentThread;
     private TaskExecutor executor;
     private boolean stop = false;
     private IDecoder decoder;
 
-    ImplTelnetSession(final SocketChannel _channel, final ImplController _controller, final int _initBufferSize) {
+    ImplTelnetClientSession(final SocketChannel _channel, final ImplController _controller, final int _initBufferSize, SelectionKey _key) {
         channel = _channel;
         controller = _controller;
         initBufferSize = _initBufferSize;
-        decoder = new Decoder(this, _channel);
+        decoder = new Decoder(this);
+        key = _key;
     }
 
     @Override
@@ -58,7 +65,7 @@ final class ImplTelnetSession implements ISession {
     }
 
     @Override
-    public String decode(final ByteBuffer _buffer, final int _bytesNum) throws GeneralTelnetException, IOException {
+    public List<String> decode(final ByteBuffer _buffer, final int _bytesNum) throws GeneralTelnetException, IOException {
         synchronized (this) {
             if (stop) return null;
         }
@@ -79,11 +86,13 @@ final class ImplTelnetSession implements ISession {
     }
 
     @Override
-    public void addTask(ICommandProcessor _task) {
+    public void addTask(Command _cmd) {
+        ICommandProcessor task =
+                _cmd.getTemplate().getCommandProcessorFactory().build(_cmd, this);
         boolean thrStart = false;
         synchronized (this) {
             if (stop) return;
-            tasks.add(_task);
+            tasks.add(task);
             if (currentThread == null) {
                 currentThread = new Thread(new TaskExecutor());
                 thrStart = true;
@@ -107,8 +116,36 @@ final class ImplTelnetSession implements ISession {
     }
 
     @Override
+    public void write(String _msg) throws IOException {
+        byte[] b = _msg.getBytes(DEFAULT_CHARSET);
+        ByteBuffer buffer = ByteBuffer.allocate(b.length + 2);
+        buffer.put(b);
+        buffer.put((byte)Constants.CR);
+        buffer.put((byte)Constants.LF);
+        buffer.flip();
+        innerWrite(buffer);
+    }
+
+    @Override
+    public void write(byte[] _b) throws IOException {
+        ByteBuffer buffer = ByteBuffer.allocate(_b.length);
+        buffer.put(_b);
+        innerWrite(buffer);
+    }
+
+    private void innerWrite(ByteBuffer buffer) throws IOException {
+        try {
+            channel.write(buffer);
+        } catch (IOException ex) {
+            close();
+            throw ex;
+        }
+    }
+
+    @Override
     public synchronized void close() {
         if (stop) return;
+        key.cancel();
         if (executor == null) {
             this.resetSession();
             return;
@@ -124,18 +161,16 @@ final class ImplTelnetSession implements ISession {
         }
     }
 
-
-
     private class TaskExecutor implements Runnable {
 
         @Override
         public void run() {
             for(;;) {
-                synchronized (ImplTelnetSession.this) {
+                synchronized (ImplTelnetClientSession.this) {
                     currentTask = null;
-                    if (ImplTelnetSession.this.stop){
+                    if (ImplTelnetClientSession.this.stop){
                         executor = null;
-                        ImplTelnetSession.this.resetSession();
+                        ImplTelnetClientSession.this.resetSession();
                         currentThread = null;
                         return;
                     } else if (tasks.size() == 0) {
@@ -143,7 +178,7 @@ final class ImplTelnetSession implements ISession {
                         currentThread = null;
                         return;
                     }
-                    currentTask = tasks.get(0);
+                    currentTask = tasks.remove(0);
                 }
                 try {
                     currentTask.process();

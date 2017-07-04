@@ -4,6 +4,8 @@ import com.manaldush.telnet.exceptions.ConfigurationException;
 import java.text.ParseException;
 
 /**
+ * Describe interface of object, that control telnet module.
+ * E object is implementation of interface clonable and describe configuration of controller.
  * Created by Maxim.Melnikov on 20.06.2017.
  */
 public interface IController<E extends Cloneable> {

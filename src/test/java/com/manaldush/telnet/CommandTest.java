@@ -14,6 +14,7 @@ import static org.junit.Assert.*;
  * Created by Maxim.Melnikov on 27.06.2017.
  */
 public class CommandTest {
+
     @Test(expected = ParseException.class)
     public void test_1() throws ParseException {
         CommandOption option = CommandOption.build("opt", "description");
@@ -22,7 +23,7 @@ public class CommandTest {
         optionValues.add(optionValue);
         CommandTemplate template = CommandTemplate.build("test command", "description", new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd, IWriterAdapter _adapter) {
+            public ICommandProcessor build(Command _cmd, IClientSession _adapter) {
                 return null;
             }
         });
@@ -41,7 +42,7 @@ public class CommandTest {
         optionValues.add(optionValue);
         CommandTemplate template = CommandTemplate.build("test command", "description", options, new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd, IWriterAdapter _adapter) {
+            public ICommandProcessor build(Command _cmd, IClientSession _adapter) {
                 return null;
             }
         });
@@ -57,7 +58,7 @@ public class CommandTest {
         options.add(option);
         CommandTemplate template = CommandTemplate.build("test command", "description", options, new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd, IWriterAdapter _adapter) {
+            public ICommandProcessor build(Command _cmd, IClientSession _adapter) {
                 return null;
             }
         });
@@ -75,7 +76,7 @@ public class CommandTest {
         options.add(option);
         CommandTemplate template = CommandTemplate.build("test command", "description", options, new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd, IWriterAdapter _adapter) {
+            public ICommandProcessor build(Command _cmd, IClientSession _adapter) {
                 return null;
             }
         });

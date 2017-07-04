@@ -1,19 +1,20 @@
 package com.manaldush.telnet.protocol;
 
+import com.manaldush.telnet.IClientSession;
 import com.manaldush.telnet.exceptions.GeneralTelnetException;
 import com.manaldush.telnet.protocol.processors.*;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by Maxim.Melnikov on 26.06.2017.
  */
 final class Decoder implements IDecoder {
-    private final ISession session;
-    private final SocketChannel channel;
+    private final IClientSession session;
     private final static int RESET_BYTE_VALUE = -1;
     private final static boolean RESET_IAC_FLAG = false;
     private final static boolean RESET_CR_FLAG = false;
@@ -23,15 +24,15 @@ final class Decoder implements IDecoder {
     private boolean CR_FLAG = RESET_CR_FLAG;
     private final Charset charset = Charset.forName("ASCII");
 
-    Decoder(final ISession _session, final SocketChannel _channel) {
+    Decoder(final IClientSession _session) {
         session = _session;
-        channel = _channel;
         reset();
         resetCR();
     }
 
     @Override
-    public String decode(final ByteBuffer _buffer, final int _bytesNum) throws GeneralTelnetException, IOException {
+    public List<String> decode(final ByteBuffer _buffer, final int _bytesNum) throws GeneralTelnetException, IOException {
+        List<String> result = new ArrayList<>();
         for(int counter=0;counter < _bytesNum;counter++) {
             byte b = _buffer.get(counter);
             if (IAC_FLAG && (b & 0xFF) == Constants.IAC) {
@@ -60,9 +61,7 @@ final class Decoder implements IDecoder {
                         buffer.flip();
                         byte[] bytesBuffer = new byte[buffer.limit()];
                         buffer.get(bytesBuffer, 0, buffer.limit());
-                        return new String(bytesBuffer, charset);
-                    } else {
-                        return null;
+                        result.add(new String(bytesBuffer, charset));
                     }
                 } else if (CR_FLAG) {
                     session.addBuffer((byte) Constants.CR);
@@ -72,7 +71,7 @@ final class Decoder implements IDecoder {
                 }
             }
         }
-        return null;
+        return result;
     }
 
     private void decodeCommand() throws GeneralTelnetException, IOException {
@@ -84,7 +83,7 @@ final class Decoder implements IDecoder {
             InterruptionProcessor.build(session).process();
             reset();
         } else if (bCmd == Constants.Are_You_There) {
-            KeepAliveProcessor.build(channel).process();
+            KeepAliveProcessor.build(session).process();
             reset();
         } else if (bCmd == Constants.Erase_Line) {
             EraseLineProcessor.build(session).process();
@@ -95,25 +94,25 @@ final class Decoder implements IDecoder {
         } else if(bCmd == Constants.WILL_NOT) {
             if (option == RESET_BYTE_VALUE) return;
             else {
-                NegotiationOptionsProcessor.buildWILLNOT(option, channel).process();
+                NegotiationOptionsProcessor.buildWILLNOT(option, session).process();
                 reset();
             }
         } else if (bCmd == Constants.WILL) {
             if (option == RESET_BYTE_VALUE) return;
             else {
-                NegotiationOptionsProcessor.buildWILL(option, channel).process();
+                NegotiationOptionsProcessor.buildWILL(option, session).process();
                 reset();
             }
         } else if (bCmd == Constants.DO_NOT) {
             if (option == RESET_BYTE_VALUE) return;
             else {
-                NegotiationOptionsProcessor.buildDONOT(option, channel).process();
+                NegotiationOptionsProcessor.buildDONOT(option, session).process();
                 reset();
             }
         } else if (bCmd == Constants.DO) {
             if (option == RESET_BYTE_VALUE) return;
             else {
-                NegotiationOptionsProcessor.buildDO(option, channel).process();
+                NegotiationOptionsProcessor.buildDO(option, session).process();
                 reset();
             }
         }

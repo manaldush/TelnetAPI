@@ -22,16 +22,18 @@ public final class CommandTemplate {
     private final ICommandProcessorFactory commandProcessorFactory;
     /**List of available options.*/
     private final List<CommandOption> options;
+    private static final String INDENT = "    ";
+    private static final String DASH = " - ";
 
     private CommandTemplate(String _command, String _description, final List<CommandOption> _options,
                             final ICommandProcessorFactory _commandProcessorFactory) {
         this.command = _command;
         this.description = _description;
         this.options = _options;
-        String fullDescriptionBuffer = this.description + CRLF;
+        String fullDescriptionBuffer = command + DASH + this.description;
         if (this.options != null) {
             for (CommandOption option : this.options) {
-                fullDescriptionBuffer = fullDescriptionBuffer + option.getDescription() + CRLF;
+                fullDescriptionBuffer = fullDescriptionBuffer + CRLF + INDENT + INDENT + option.getOption() + DASH + option.getDescription();
             }
         }
         this.fullDescription = fullDescriptionBuffer;
@@ -71,7 +73,7 @@ public final class CommandTemplate {
      * Возвращает краткое описание команды, без описания опций запуска.
      * @return telnet command description
      */
-    protected String getDescription() {
+    public String getDescription() {
         return this.description;
     }
 
@@ -79,7 +81,7 @@ public final class CommandTemplate {
      * Возвращает полное описание команды, с описанием опций запуска.
      * @return full telnet command description
      */
-    protected String getFullDescription() {
+    public String getFullDescription() {
         return this.fullDescription;
     }
 

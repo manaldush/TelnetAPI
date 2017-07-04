@@ -20,14 +20,13 @@ import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.nio.channels.spi.AbstractSelectableChannel;
 import java.text.ParseException;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
+import static org.mockito.Mockito.times;
 
 
 /**
@@ -109,7 +108,7 @@ public class ImplControllerTest {
         // check register operation
         CommandTemplate template = CommandTemplate.build("test", "description", new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd, IWriterAdapter _writer) {
+            public ICommandProcessor build(Command _cmd, IClientSession _writer) {
                 return PowerMockito.mock(ICommandProcessor.class);
             }
         });
@@ -139,7 +138,7 @@ public class ImplControllerTest {
         // check session was created in container
         Field field = controller.getClass().getDeclaredField("sessions");
         field.setAccessible(true);
-        Map<SocketChannel, ISession> sessions = (Map<SocketChannel, ISession>)field.get(controller);
+        Map<SocketChannel, IClientSession> sessions = (Map<SocketChannel, IClientSession>)field.get(controller);
         assertTrue(sessions.size() == 1);
         SocketChannel channel = sessions.entrySet().iterator().next().getKey();
 
@@ -168,7 +167,7 @@ public class ImplControllerTest {
         // check session was created in container
         field = controller.getClass().getDeclaredField("sessions");
         field.setAccessible(true);
-        Map<SocketChannel, ISession> sessions = (Map<SocketChannel, ISession>)field.get(controller);
+        Map<SocketChannel, IClientSession> sessions = (Map<SocketChannel, IClientSession>)field.get(controller);
         assertTrue(sessions.size() == 0);
 
         // check response unknown command
@@ -181,6 +180,7 @@ public class ImplControllerTest {
     public void test_4() throws NoSuchFieldException, IllegalAccessException, NoSuchMethodException, InvocationTargetException, IOException, GeneralTelnetException {
         TestContext context = prepareServerAccept();
         ImplController controller = context.getController();
+        List<String> decodedLines = new ArrayList<>();
         // Execute method
         Method processKeys = controller.getClass().getDeclaredMethod("processKeys", null);
         processKeys.setAccessible(true);
@@ -197,42 +197,74 @@ public class ImplControllerTest {
         // mock session object for returning decoding string
         field = controller.getClass().getDeclaredField("sessions");
         field.setAccessible(true);
-        Map<SocketChannel, ISession> sessions = (Map<SocketChannel, ISession>)field.get(controller);
-        ISession session = PowerMockito.mock(ISession.class);
+        Map<SocketChannel, IClientSession> sessions = (Map<SocketChannel, IClientSession>)field.get(controller);
+        IClientSession session = PowerMockito.mock(IClientSession.class);
         sessions.put(context.getChannel(), session);
-        PowerMockito.when(session.decode(any(ByteBuffer.class), anyInt())).thenReturn("test");
+        decodedLines.clear();
+        decodedLines.add("test");
+        PowerMockito.when(session.decode(any(ByteBuffer.class), anyInt())).thenReturn(decodedLines);
         processKeys.invoke(controller, null);
 
         // check client connection success read unknown command
-        field = controller.getClass().getDeclaredField("BUFFER_UNKNOWN_COMMAND");
+        field = controller.getClass().getDeclaredField("LOG_UNKNOWN_COMMAND");
         field.setAccessible(true);
-        Mockito.verify(context.getChannel()).write((ByteBuffer) field.get(context.getChannel()));
+        Mockito.verify(session).write((String) field.get(context.getController()));
 
         // check client connection success read known command
         CommandTemplate template = CommandTemplate.build("test", "description", new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd, IWriterAdapter _writer) {
+            public ICommandProcessor build(Command _cmd, IClientSession _writer) {
                 return PowerMockito.mock(ICommandProcessor.class);
             }
         });
         controller.register(template);
         PowerMockito.when(context.getChannel().read(any(ByteBuffer.class))).thenReturn(4);
-        PowerMockito.when(session.decode(any(ByteBuffer.class), anyInt())).thenReturn("test");
+        decodedLines.clear();
+        decodedLines.add("test");
+        PowerMockito.when(session.decode(any(ByteBuffer.class), anyInt())).thenReturn(decodedLines);
         processKeys.invoke(controller, null);
-        Mockito.verify(session).addTask(any(ICommandProcessor.class));
+        Mockito.verify(session).addTask(any(Command.class));
 
         // check client connection success read known long(length > data_portion) command
+        Mockito.reset(session);
         template = CommandTemplate.build("test command", "description", new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd, IWriterAdapter _writer) {
+            public ICommandProcessor build(Command _cmd, IClientSession _session) {
                 return PowerMockito.mock(ICommandProcessor.class);
             }
         });
         controller.register(template);
         PowerMockito.when(context.getChannel().read(any(ByteBuffer.class))).thenReturn(10).thenReturn(2);
-        PowerMockito.when(session.decode(any(ByteBuffer.class), anyInt())).thenReturn("test comma").thenReturn("nd");
+        decodedLines.clear();
+        decodedLines.add("test command");
+        PowerMockito.when(session.decode(any(ByteBuffer.class), anyInt())).thenReturn(new ArrayList<String>()).thenReturn(decodedLines);
         processKeys.invoke(controller, null);
-        Mockito.verify(session).addTask(any(ICommandProcessor.class));
+        Mockito.verify(session).addTask(any(Command.class));
+
+        // Two commands at one decoding iteration
+        Mockito.reset(session);
+        template = CommandTemplate.build("test command", "description", new ICommandProcessorFactory() {
+            @Override
+            public ICommandProcessor build(Command _cmd, IClientSession _session) {
+                return PowerMockito.mock(ICommandProcessor.class);
+            }
+        });
+        controller.register(template);
+        template = CommandTemplate.build("test", "description", new ICommandProcessorFactory() {
+            @Override
+            public ICommandProcessor build(Command _cmd, IClientSession _session) {
+                return PowerMockito.mock(ICommandProcessor.class);
+            }
+        });
+        controller.register(template);
+        PowerMockito.when(context.getChannel().read(any(ByteBuffer.class))).thenReturn(10).thenReturn(10).thenReturn(0);
+        decodedLines.clear();
+        decodedLines.add("test command");
+        decodedLines.add("test");
+        PowerMockito.when(session.decode(any(ByteBuffer.class), anyInt())).thenReturn(new ArrayList<String>()).thenReturn(decodedLines);
+        processKeys.invoke(controller, null);
+        Mockito.verify(session, times(2)).addTask(any(Command.class));
+
 
         // check client connection was closed
         PowerMockito.when(context.getChannel().read(any(ByteBuffer.class))).thenReturn(-1);
@@ -275,6 +307,8 @@ public class ImplControllerTest {
         PowerMockito.when(key.channel()).thenReturn(ss);
         SocketChannel client = PowerMockito.mock(SocketChannel.class);
         PowerMockito.when(ss.accept()).thenReturn(client);
+        SelectionKey keyClnt = PowerMockito.mock(SelectionKey.class);
+        PowerMockito.when(client.register(any(Selector.class), anyInt())).thenReturn(keyClnt);
         return new TestContext().setChannel(client).setConf(confWrapper).setController(controller).setKey(key);
     }
 }

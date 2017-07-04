@@ -2,8 +2,11 @@ package com.manaldush.telnet.protocol;
 
 import com.google.common.base.Preconditions;
 import com.manaldush.telnet.*;
+import com.manaldush.telnet.commands.HelpCommand;
+import com.manaldush.telnet.commands.QuitCommand;
 import com.manaldush.telnet.exceptions.ConfigurationException;
 import com.manaldush.telnet.exceptions.GeneralTelnetException;
+import com.manaldush.telnet.exceptions.OperationException;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -32,25 +35,16 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
     private final static SocketOption<Boolean> SO_KEEPALIVE_OPT    = StandardSocketOptions.SO_KEEPALIVE;
     private final static byte[] LOG_SESSIONS_OVER_LIMIT = "sessions limit is over".getBytes();
     private final static String LOG_UNKNOWN_COMMAND = "unknown command";
-    private final static byte[] LOG_UNKNOWN_COMMAND_AS_BYTES = LOG_UNKNOWN_COMMAND.getBytes();
-    private final static ByteBuffer BUFFER_OVER_LIMIT;
-    private final static ByteBuffer BUFFER_UNKNOWN_COMMAND;
     private static final int DATA_PORTION = 10;
     private volatile ServerSocketChannel ss;
     private volatile ConfigurationWrapper conf;
     private final Map<String, CommandTemplate> commandTemplates = new HashMap<>();
-    private final Map<SocketChannel, ISession> sessions = new HashMap<>();
+    private final Map<SocketChannel, IClientSession> sessions = new HashMap<>();
     private volatile STATUS status = STATUS.INITIALIZE;
     private volatile Selector selector;
     private int sessionsNumber = 0;
     private final Semaphore state = new Semaphore(1);
     private Thread executor = null;
-    static {
-        BUFFER_OVER_LIMIT = ByteBuffer.allocate(LOG_SESSIONS_OVER_LIMIT.length);
-        BUFFER_OVER_LIMIT.put(LOG_SESSIONS_OVER_LIMIT);
-        BUFFER_UNKNOWN_COMMAND = ByteBuffer.allocate(LOG_UNKNOWN_COMMAND_AS_BYTES.length);
-        BUFFER_UNKNOWN_COMMAND.put(LOG_UNKNOWN_COMMAND_AS_BYTES);
-    }
 
     public ImplController() {
     }
@@ -105,6 +99,7 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         if (STATUS.INITIALIZE == status) throw new IllegalStateException("System has not been configured yet");
         if (STATUS.STARTED == status) throw new IllegalStateException("System has been already started");
         if (STATUS.STOPPED == status) throw new IllegalStateException("System has been already stopped");
+        registerDefaultCommands();
         executor = new Thread(this);
         status = STATUS.STARTED;
         executor.start();
@@ -116,6 +111,7 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
             if (status == STATUS.STARTED) status = STATUS.STOPPED;
             else return;
         }
+        selector.wakeup();
         if (executor.isAlive()) try {
             executor.join();
         } catch (InterruptedException e) {
@@ -164,8 +160,8 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         } finally {
             // close all sessions and wait closing all sessions
             synchronized (this) {
-                for (Map.Entry<SocketChannel, ISession> pair : sessions.entrySet()) {
-                    ISession session = pair.getValue();
+                for (Map.Entry<SocketChannel, IClientSession> pair : sessions.entrySet()) {
+                    IClientSession session = pair.getValue();
                     session.close();
                 }
             }
@@ -179,60 +175,57 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
     }
 
     private void processKeys() throws IOException, InterruptedException {
-        if (selector.select(1000) == 0) return;
+        selector.select();
+        if (status != STATUS.STARTED) return;
         Set<SelectionKey> selectedKeys = selector.selectedKeys();
         Iterator<SelectionKey> iterator = selectedKeys.iterator();
         while (iterator.hasNext()) {
             SelectionKey key = iterator.next();
             if (key.isAcceptable()) {
                 SocketChannel client = ((ServerSocketChannel) key.channel()).accept();
-                if (client == null) return;
-                if (acceptSession()) {
-                    configureClientSocket(client);
-                    synchronized (this) {
+                if (client == null) continue;
+                SelectionKey clientKey = configureClientSocket(client);
+                IClientSession session = new ImplTelnetClientSession(client, this, DATA_PORTION, clientKey);
+                boolean denySess = true;
+                synchronized (this) {
+                    if (acceptSession()) {
                         if (sessions.size() == 0) state.acquire();
-                        sessions.put(client, new ImplTelnetSession(client, this, DATA_PORTION));
+                        sessions.put(client, session);
+                        denySess = false;
                     }
-                } else {
-                    BUFFER_OVER_LIMIT.flip();
-                    client.write(BUFFER_OVER_LIMIT);
-                    client.close();
+                }
+                if (denySess) {
+                    session.write(LOG_SESSIONS_OVER_LIMIT);
+                    session.close();
                 }
             } else if (key.isReadable()) {
                 SocketChannel client = (SocketChannel) key.channel();
-                ISession session;
+                if (client == null) continue;
+                IClientSession session;
                 synchronized (this) {
                     session = sessions.get(client);
                 }
                 // Check Session was reset
-                if (session == null) return;
+                if (session == null) continue;
                 try {
-                    String line = this.readData(client, session);
-                    if (line == null) return;
-                    Command cmd = this.search(line);
-                    if (cmd == null) throw new ParseException(LOG_UNKNOWN_COMMAND, 0);
-                    session.addTask(cmd.getTemplate().getCommandProcessorFactory().build(cmd,
-                            ImplWriterAdapter.build(session, client)));
+                    addTasks(this.readData(client, session), session);
                 } catch (GeneralTelnetException | IOException e) {
                     e.printStackTrace();
                     status = STATUS.STOPPED;
                     session.close();
-                } catch (ParseException ex) {
-                    BUFFER_UNKNOWN_COMMAND.flip();
-                    client.write(BUFFER_UNKNOWN_COMMAND);
                 }
             }
         }
     }
 
-    private void configureClientSocket(SocketChannel _channel) throws IOException {
+    private SelectionKey configureClientSocket(SocketChannel _channel) throws IOException {
         _channel.configureBlocking(false);
         _channel.setOption(SO_REUSEADDR_OPT, conf.getConf().getSO_REUSEADDR());
         _channel.setOption(SO_RCVBUF_OPT, conf.getConf().getSO_RCVBUF());
         _channel.setOption(SO_SNDBUF_OPT, conf.getConf().getSO_SNDBUF());
         _channel.setOption(TCP_NODELAY_OPT, conf.getConf().getTCP_NODELAY());
         _channel.setOption(SO_KEEPALIVE_OPT, true);
-        _channel.register(selector, SelectionKey.OP_READ);
+        return _channel.register(selector, SelectionKey.OP_READ);
     }
 
     private boolean acceptSession() {
@@ -251,16 +244,16 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         sessionsNumber--;
     }
 
-    private String readData(SocketChannel _channel, ISession _session) throws IOException, GeneralTelnetException {
+    private List<String> readData(SocketChannel _channel, IClientSession _session) throws IOException, GeneralTelnetException {
         ByteBuffer buffer = ByteBuffer.allocate(DATA_PORTION);
-        String line = null;
+        List<String> lines = new ArrayList<>();
         for(;;) {
             int numberBytes = _channel.read(buffer);
             if (numberBytes == DATA_PORTION) {
-                line = _session.decode(buffer, DATA_PORTION);
+                lines.addAll(_session.decode(buffer, DATA_PORTION));
                 continue;
             } else if (numberBytes < DATA_PORTION && numberBytes > 0) {
-                line = _session.decode(buffer, numberBytes);
+                lines.addAll(_session.decode(buffer, numberBytes));
             } else if (numberBytes < 0) {
                 // connection was closed
                 _session.close();
@@ -268,8 +261,47 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
             }
             break;
         }
-        return line;
+        return lines;
     }
 
+    private void addTasks(List<String> _lines, IClientSession _session) throws IOException {
+        if (_lines == null || _lines.size() == 0) return;
+        Iterator<String> iterator = _lines.iterator();
+        while(iterator.hasNext()) {
+            try {
+                String line = iterator.next();
+                Command cmd = this.search(line);
+                if (cmd == null) throw new ParseException(LOG_UNKNOWN_COMMAND, 0);
+                _session.addTask(cmd);
+            } catch (ParseException ex) {
+                _session.write(LOG_UNKNOWN_COMMAND);
+            }
+        }
+    }
+
+    private void registerDefaultCommands() {
+        registerQuitCommand();
+        registerHelpCommand();
+    }
+
+    private void registerQuitCommand() {
+        CommandTemplate quit = CommandTemplate.build("quit", "close session", new ICommandProcessorFactory() {
+            @Override
+            public ICommandProcessor build(Command _cmd, final IClientSession _session) {
+                return QuitCommand.build(_session);
+            }
+        });
+        this.register(quit);
+    }
+
+    private void registerHelpCommand() {
+        CommandTemplate help = CommandTemplate.build("help", "help command, describe all commands", new ICommandProcessorFactory() {
+            @Override
+            public ICommandProcessor build(Command _cmd, IClientSession _session) {
+                return HelpCommand.build(_session, new HashMap<>(commandTemplates));
+            }
+        });
+        this.register(help);
+    }
 
 }
