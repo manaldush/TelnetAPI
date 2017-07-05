@@ -6,6 +6,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 /**
+ * Base configuration of service.
  * Created by Maxim.Melnikov on 20.06.2017.
  */
 public final class Configuration implements Cloneable {

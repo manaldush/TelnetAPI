@@ -10,6 +10,7 @@ import com.manaldush.telnet.exceptions.OperationException;
 import java.io.IOException;
 
 /**
+ * Quit command.
  * Created by Maxim.Melnikov on 03.07.2017.
  */
 public final class QuitCommand implements ICommandProcessor {
@@ -20,11 +21,22 @@ public final class QuitCommand implements ICommandProcessor {
         session = _session;
     }
 
+    /**
+     * Build QuitCommand object.
+     * @param _session - client session
+     * @throws NullPointerException - if session is null object
+     * @return QuitCommand
+     */
     public static QuitCommand build(IClientSession _session) {
         Preconditions.checkNotNull(_session);
         return new QuitCommand(_session);
     }
 
+    /**
+     * Process quit command execution.
+     * @throws OperationException - telnet operation exception
+     * @throws IOException - I/O error
+     */
     @Override
     public void process() throws OperationException, IOException {
         session.close();

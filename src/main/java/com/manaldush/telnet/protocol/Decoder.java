@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
+ * Implementation of IDecoder interface.
  * Created by Maxim.Melnikov on 26.06.2017.
  */
 final class Decoder implements IDecoder {
@@ -29,7 +30,15 @@ final class Decoder implements IDecoder {
         reset();
         resetCR();
     }
-
+    /**
+     * Decode method, return list of received lines. Line must enr with CRLF. Telnet protocol commands will be processed
+     * and decoding continue. If received line without CRLF, it will be saved in session buffer.
+     * @param _buffer - buffer for decoding
+     * @param _bytesNum - number of bytes
+     * @return list of decoded lines
+     * @throws GeneralTelnetException - any telnet error
+     * @throws IOException -  I/O errors
+     */
     @Override
     public List<String> decode(final ByteBuffer _buffer, final int _bytesNum) throws GeneralTelnetException, IOException {
         List<String> result = new ArrayList<>();

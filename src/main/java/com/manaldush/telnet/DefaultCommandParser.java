@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * Default implementation of ICommandParser,
+ * example of command "test -i opt1 -p opt2"
  * Created by Maxim.Melnikov on 27.06.2017.
  */
 final class DefaultCommandParser implements ICommandParser {
@@ -54,12 +56,21 @@ final class DefaultCommandParser implements ICommandParser {
         }
         return options;
     }
-
+    /**
+     * Return command text.
+     * @return - result string
+     * @throws ParseException - parse exception error
+     */
     @Override
     public String parseCommand() throws ParseException {
         return cmdPart;
     }
 
+    /**
+     * Parse options string and return map<option,value>
+     * @return map<option,value>
+     * @throws ParseException
+     */
     @Override
     public Map<String, String> parseOptions() throws ParseException {
         return options;

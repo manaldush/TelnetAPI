@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
+ * Help command.
  * Created by Maxim.Melnikov on 03.07.2017.
  */
 public final class HelpCommand implements ICommandProcessor {
@@ -23,12 +24,24 @@ public final class HelpCommand implements ICommandProcessor {
         commandTemplates = _commandTemplates;
     }
 
+    /**
+     * Build help command.
+     * @param _session - client session
+     * @param _commandTemplates - map of command's templates
+     * @throws NullPointerException - if session or map of commandTemplates is null objects
+     * @return - help command
+     */
     public static HelpCommand build(IClientSession _session, Map<String, CommandTemplate> _commandTemplates) {
         Preconditions.checkNotNull(_session);
         Preconditions.checkNotNull(_commandTemplates);
         return new HelpCommand(_session, _commandTemplates);
     }
 
+    /**
+     * Process command.
+     * @throws OperationException - telnet operation exception
+     * @throws IOException - I/O error
+     */
     @Override
     public void process() throws OperationException, IOException {
         if (commandTemplates == null || commandTemplates.isEmpty()) return;

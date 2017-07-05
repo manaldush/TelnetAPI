@@ -22,6 +22,7 @@ import java.util.*;
 import java.util.concurrent.Semaphore;
 
 /**
+ * Implementation of IController object.
  * Created by Maxim.Melnikov on 22.06.2017.
  */
 public class ImplController implements IController<ConfigurationWrapper>, Runnable {
@@ -94,6 +95,9 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         commandTemplates.remove(_template);
     }
 
+    /**
+     * Start controller.
+     */
     @Override
     public synchronized void start() {
         if (STATUS.INITIALIZE == status) throw new IllegalStateException("System has not been configured yet");
@@ -105,6 +109,9 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         executor.start();
     }
 
+    /**
+     * Stop controller.
+     */
     @Override
     public void stop() {
         synchronized (this) {
@@ -119,6 +126,12 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         }
     }
 
+    /**
+     * Return command object appropriate to given String.
+     * @param _command - string representation of command with options
+     * @return - command
+     * @throws ParseException - parse Exception of incoming String, illegal options
+     */
     @Override
     public Command search(String _command) throws ParseException {
         ICommandParser parser = conf.getConf().getParser().build(_command);

@@ -1,0 +1,5 @@
+com.manaldush.telnet
+com.manaldush.telnet.commands
+com.manaldush.telnet.exceptions
+com.manaldush.telnet.protocol
+com.manaldush.telnet.protocol.processors

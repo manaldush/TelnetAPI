@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
+ * Implementation of IClientSession interface.
  * Created by Maxim.Melnikov on 22.06.2017.
  */
 final class ImplTelnetClientSession implements IClientSession {
@@ -40,6 +41,10 @@ final class ImplTelnetClientSession implements IClientSession {
         key = _key;
     }
 
+    /**
+     * Add buffer to current read buffer of session.
+     * @param _b - byte
+     */
     @Override
     public void addBuffer(byte _b) {
         if (buffer == null) buffer = ByteBuffer.allocate(initBufferSize);
@@ -54,6 +59,10 @@ final class ImplTelnetClientSession implements IClientSession {
         }
     }
 
+    /**
+     * Get buffer object.
+     * @return buffer
+     */
     @Override
     public ByteBuffer getBuffer() {
         //return copy
@@ -64,6 +73,14 @@ final class ImplTelnetClientSession implements IClientSession {
         return nbuffer;
     }
 
+    /**
+     * Decode byte buffer, that was read from connection.
+     * @param _buffer - byte buffer
+     * @param _bytesNum - number of readed bytes
+     * @return list of read strings
+     * @throws GeneralTelnetException - any telnet protocol error during processing
+     * @throws IOException - IO errors
+     */
     @Override
     public List<String> decode(final ByteBuffer _buffer, final int _bytesNum) throws GeneralTelnetException, IOException {
         synchronized (this) {
@@ -72,11 +89,17 @@ final class ImplTelnetClientSession implements IClientSession {
         return decoder.decode(_buffer, _bytesNum);
     }
 
+    /**
+     * Reset buffer.
+     */
     @Override
     public void resetBuffer() {
         buffer = null;
     }
 
+    /**
+     * Erase last character from buffer.
+     */
     @Override
     public void eraseCharacter() {
         if (buffer == null) return;
@@ -85,6 +108,10 @@ final class ImplTelnetClientSession implements IClientSession {
         buffer.position(buffer.position()-1);
     }
 
+    /**
+     * Create task from command and add it in queue for processing.
+     * @param _cmd - command
+     */
     @Override
     public void addTask(Command _cmd) {
         ICommandProcessor task =
@@ -101,6 +128,10 @@ final class ImplTelnetClientSession implements IClientSession {
         if (thrStart) currentThread.start();
     }
 
+    /**
+     * Abort output of current executed task.
+     * @throws AbortOutputProcessException - if some error occured during processing output abort in current executed task
+     */
     @Override
     public synchronized void abortCurrentTask() throws AbortOutputProcessException {
         if (stop) return;
@@ -108,6 +139,10 @@ final class ImplTelnetClientSession implements IClientSession {
         currentTask.abortOutput();
     }
 
+    /**
+     * Interrupt current executed task.
+     * @throws InterruptProcessException - if some error occured during processing interruption current executed task
+     */
     @Override
     public synchronized void interruptCurrentTask() throws InterruptProcessException {
         if (stop) return;
@@ -115,6 +150,11 @@ final class ImplTelnetClientSession implements IClientSession {
         currentTask.interruptProcess();
     }
 
+    /**
+     * Write message in connection.
+     * @param _msg - message
+     * @throws IOException - if IO problem occured
+     */
     @Override
     public void write(String _msg) throws IOException {
         byte[] b = _msg.getBytes(DEFAULT_CHARSET);
@@ -126,6 +166,11 @@ final class ImplTelnetClientSession implements IClientSession {
         innerWrite(buffer);
     }
 
+    /**
+     * Write bytes in connection.
+     * @param _b - bytes
+     * @throws IOException - if IO problem occured
+     */
     @Override
     public void write(byte[] _b) throws IOException {
         ByteBuffer buffer = ByteBuffer.allocate(_b.length);
@@ -142,6 +187,9 @@ final class ImplTelnetClientSession implements IClientSession {
         }
     }
 
+    /**
+     * Command for close session.
+     */
     @Override
     public synchronized void close() {
         if (stop) return;
