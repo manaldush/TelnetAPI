@@ -25,7 +25,7 @@ public class ImplTelnetSessionTest {
         // Buffer method check
         SocketChannel channel = Mockito.mock(SocketChannel.class);
         SelectionKey key = Mockito.mock(SelectionKey.class);
-        ImplTelnetClientSession session = new ImplTelnetClientSession(channel, new ImplController(), 3, key);
+        ImplTelnetClientSession session = new ImplTelnetClientSession(channel, new ImplController(), 3, key, "->");
         session.addBuffer((byte)0x33);
         session.addBuffer((byte)0x33);
         session.addBuffer((byte)0x33);
@@ -43,7 +43,7 @@ public class ImplTelnetSessionTest {
     public void test_decode() throws NoSuchFieldException, IllegalAccessException, GeneralTelnetException, IOException {
         SocketChannel channel = Mockito.mock(SocketChannel.class);
         SelectionKey key = Mockito.mock(SelectionKey.class);
-        ImplTelnetClientSession session = new ImplTelnetClientSession(channel, new ImplController(), 3, key);
+        ImplTelnetClientSession session = new ImplTelnetClientSession(channel, new ImplController(), 3, key, "->");
         IDecoder decoder = Mockito.mock(IDecoder.class);
         Field field = session.getClass().getDeclaredField("decoder");
         field.setAccessible(true);
@@ -57,7 +57,7 @@ public class ImplTelnetSessionTest {
         SocketChannel channel = Mockito.mock(SocketChannel.class);
         SelectionKey key = Mockito.mock(SelectionKey.class);
         ImplController controller = Mockito.mock(ImplController.class);
-        IClientSession session = new ImplTelnetClientSession(channel, controller,10, key);
+        IClientSession session = new ImplTelnetClientSession(channel, controller,10, key, "->");
         session.write("test");
         Mockito.verify(channel).write(any(ByteBuffer.class));
     }
@@ -67,7 +67,7 @@ public class ImplTelnetSessionTest {
         SelectionKey key = Mockito.mock(SelectionKey.class);
         SocketChannel channel = Mockito.mock(SocketChannel.class);
         ImplController controller = Mockito.mock(ImplController.class);
-        IClientSession session = new ImplTelnetClientSession(channel, controller, 10, key);
+        IClientSession session = new ImplTelnetClientSession(channel, controller, 10, key, "->");
         Mockito.when(channel.write(any(ByteBuffer.class))).thenThrow(IOException.class);
         try {
             session.write("test");

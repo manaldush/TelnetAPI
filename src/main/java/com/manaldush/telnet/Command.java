@@ -72,6 +72,11 @@ public final class Command {
         }
     }
 
+    public static Command build(CommandTemplate _template) {
+        Preconditions.checkNotNull(_template);
+        return new Command(_template, null);
+    }
+
     public CommandTemplate getTemplate() {
         return template;
     }

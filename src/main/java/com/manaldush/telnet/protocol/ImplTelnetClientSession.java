@@ -15,6 +15,8 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.manaldush.telnet.protocol.Constants.CRLF;
+
 /**
  * Implementation of IClientSession interface.
  * Created by Maxim.Melnikov on 22.06.2017.
@@ -32,13 +34,16 @@ final class ImplTelnetClientSession implements IClientSession {
     private TaskExecutor executor;
     private boolean stop = false;
     private IDecoder decoder;
+    private final String prompt;
 
-    ImplTelnetClientSession(final SocketChannel _channel, final ImplController _controller, final int _initBufferSize, SelectionKey _key) {
+    ImplTelnetClientSession(final SocketChannel _channel, final ImplController _controller, final int _initBufferSize,
+                            SelectionKey _key, String _prompt) {
         channel = _channel;
         controller = _controller;
         initBufferSize = _initBufferSize;
         decoder = new Decoder(this);
         key = _key;
+        prompt = _prompt;
     }
 
     /**
@@ -157,11 +162,9 @@ final class ImplTelnetClientSession implements IClientSession {
      */
     @Override
     public void write(String _msg) throws IOException {
-        byte[] b = _msg.getBytes(DEFAULT_CHARSET);
-        ByteBuffer buffer = ByteBuffer.allocate(b.length + 2);
+        byte[] b = str2Bytes(_msg);
+        ByteBuffer buffer = ByteBuffer.allocate(b.length);
         buffer.put(b);
-        buffer.put((byte)Constants.CR);
-        buffer.put((byte)Constants.LF);
         buffer.flip();
         innerWrite(buffer);
     }
@@ -175,6 +178,7 @@ final class ImplTelnetClientSession implements IClientSession {
     public void write(byte[] _b) throws IOException {
         ByteBuffer buffer = ByteBuffer.allocate(_b.length);
         buffer.put(_b);
+        buffer.flip();
         innerWrite(buffer);
     }
 
@@ -187,16 +191,23 @@ final class ImplTelnetClientSession implements IClientSession {
         }
     }
 
+    private byte[] str2Bytes(String _msg) {
+        return _msg.getBytes(DEFAULT_CHARSET);
+    }
+
     /**
      * Command for close session.
      */
     @Override
     public synchronized void close() {
+        innerClose();
+    }
+
+    private void innerClose() {
         if (stop) return;
         key.cancel();
         if (executor == null) {
             this.resetSession();
-            return;
         }
         this.stop = true;
     }
@@ -224,6 +235,15 @@ final class ImplTelnetClientSession implements IClientSession {
                     } else if (tasks.size() == 0) {
                         executor = null;
                         currentThread = null;
+                        try {
+                            ImplTelnetClientSession.this.write(CRLF);
+                            ImplTelnetClientSession.this.write(Constants.GREEN);
+                            ImplTelnetClientSession.this.write(str2Bytes(prompt));
+                            ImplTelnetClientSession.this.write(Constants.RESET_COLOR);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            innerClose();
+                        }
                         return;
                     }
                     currentTask = tasks.remove(0);

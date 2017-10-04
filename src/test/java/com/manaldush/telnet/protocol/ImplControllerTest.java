@@ -206,9 +206,8 @@ public class ImplControllerTest {
         processKeys.invoke(controller, null);
 
         // check client connection success read unknown command
-        field = controller.getClass().getDeclaredField("LOG_UNKNOWN_COMMAND");
-        field.setAccessible(true);
-        Mockito.verify(session).write((String) field.get(context.getController()));
+        Mockito.verify(session).addTask(any(Command.class));
+        Mockito.reset(session);
 
         // check client connection success read known command
         CommandTemplate template = CommandTemplate.build("test", "description", new ICommandProcessorFactory() {

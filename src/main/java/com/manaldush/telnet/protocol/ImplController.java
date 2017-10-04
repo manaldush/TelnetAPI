@@ -4,10 +4,9 @@ import com.google.common.base.Preconditions;
 import com.manaldush.telnet.*;
 import com.manaldush.telnet.commands.HelpCommand;
 import com.manaldush.telnet.commands.QuitCommand;
+import com.manaldush.telnet.commands.UnknownCommand;
 import com.manaldush.telnet.exceptions.ConfigurationException;
 import com.manaldush.telnet.exceptions.GeneralTelnetException;
-import com.manaldush.telnet.exceptions.OperationException;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
@@ -20,6 +19,8 @@ import java.nio.channels.SocketChannel;
 import java.text.ParseException;
 import java.util.*;
 import java.util.concurrent.Semaphore;
+
+import static com.manaldush.telnet.protocol.Constants.CRLF;
 
 /**
  * Implementation of IController object.
@@ -46,6 +47,7 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
     private int sessionsNumber = 0;
     private final Semaphore state = new Semaphore(1);
     private Thread executor = null;
+    private static final Command UNKNOWN_COMMAND = createUnknownCommand();
 
     public ImplController() {
     }
@@ -198,7 +200,7 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
                 SocketChannel client = ((ServerSocketChannel) key.channel()).accept();
                 if (client == null) continue;
                 SelectionKey clientKey = configureClientSocket(client);
-                IClientSession session = new ImplTelnetClientSession(client, this, DATA_PORTION, clientKey);
+                IClientSession session = new ImplTelnetClientSession(client, this, DATA_PORTION, clientKey, conf.getConf().getPrompt());
                 boolean denySess = true;
                 synchronized (this) {
                     if (acceptSession()) {
@@ -210,6 +212,12 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
                 if (denySess) {
                     session.write(LOG_SESSIONS_OVER_LIMIT);
                     session.close();
+                } else {
+                    session.write(Constants.GREEN);
+                    session.write(conf.getConf().getGreeting());
+                    session.write(CRLF);
+                    session.write(conf.getConf().getPrompt());
+                    session.write(Constants.RESET_COLOR);
                 }
             } else if (key.isReadable()) {
                 SocketChannel client = (SocketChannel) key.channel();
@@ -281,14 +289,16 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         if (_lines == null || _lines.size() == 0) return;
         Iterator<String> iterator = _lines.iterator();
         while(iterator.hasNext()) {
+            String line = iterator.next();
+            Command cmd = null;
             try {
-                String line = iterator.next();
-                Command cmd = this.search(line);
-                if (cmd == null) throw new ParseException(LOG_UNKNOWN_COMMAND, 0);
-                _session.addTask(cmd);
-            } catch (ParseException ex) {
-                _session.write(LOG_UNKNOWN_COMMAND);
+                cmd = this.search(line);
+            } catch (ParseException e) {
+                e.printStackTrace();
+                cmd = null;
             }
+            if (cmd == null) cmd = UNKNOWN_COMMAND;
+            _session.addTask(cmd);
         }
     }
 
@@ -315,6 +325,16 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
             }
         });
         this.register(help);
+    }
+
+    private static Command createUnknownCommand() {
+        CommandTemplate unknownCommand = CommandTemplate.build("unknown command", "unknown command", new ICommandProcessorFactory() {
+            @Override
+            public ICommandProcessor build(Command _cmd, IClientSession _session) {
+                return UnknownCommand.build(_session);
+            }
+        });
+        return Command.build(unknownCommand);
     }
 
 }

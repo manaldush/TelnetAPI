@@ -7,6 +7,8 @@ import com.manaldush.telnet.ICommandProcessor;
 import com.manaldush.telnet.exceptions.AbortOutputProcessException;
 import com.manaldush.telnet.exceptions.InterruptProcessException;
 import com.manaldush.telnet.exceptions.OperationException;
+import com.manaldush.telnet.protocol.Constants;
+
 import java.io.IOException;
 import java.util.Map;
 
@@ -62,5 +64,6 @@ public final class HelpCommand implements ICommandProcessor {
 
     private void printCommand(CommandTemplate _template) throws IOException {
         session.write(_template.getFullDescription());
+        session.write(Constants.CRLF);
     }
 }

@@ -10,6 +10,15 @@ public final class Constants {
     public static final int CR   = 0x0D;
     //Moves the printer to the next print line, keeping the same horizontal position.
     public static final int LF   = 0x0A;
+
+    public static final byte[] CRLF = {CR , LF};
+
+    /**ANSI Red color.*/
+    public static final String	RED	= "\u001B[31m";
+    /**ANSI Green color.*/
+    public static final String	GREEN	= "\u001B[32m";
+    /**Reset color.*/
+    public static final String	RESET_COLOR	= "\u001B[0m";
     //No Operation
     public static final int NUL  = 0x00;
     //Produces an audible or visible signal (which does NOT move the print head).

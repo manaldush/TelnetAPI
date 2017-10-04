@@ -10,12 +10,15 @@ import java.net.UnknownHostException;
  * Created by Maxim.Melnikov on 20.06.2017.
  */
 public final class Configuration implements Cloneable {
+    private static final String DEFAULT_GREETING = "Alice Server Greeting!!!";
+    private static final String DEFAULT_PROMPT = "->";
     /**Maximum Number of simultaneous user sessions, default value = 10, 0 is not limited.*/
     private int maxSessions = 0;
     /**Server address*/
     private final InetAddress address;
     private final int port;
     private ICommandParserFactory parser = new DefaultCommandParserFactory();
+    private String greeting = DEFAULT_GREETING;
 
     private Integer SO_SNDBUF = 1024;
 
@@ -24,6 +27,8 @@ public final class Configuration implements Cloneable {
     private Boolean SO_REUSEADDR = Boolean.FALSE;
 
     private Boolean TCP_NODELAY = Boolean.FALSE;
+
+    private String prompt = DEFAULT_PROMPT;
 
     private Configuration(InetAddress _addr, int _port) {
         address = _addr;
@@ -119,5 +124,22 @@ public final class Configuration implements Cloneable {
 
     public ICommandParserFactory getParser() {
         return parser;
+    }
+
+    public String getGreeting() {
+        return greeting;
+    }
+
+    public void setGreeting(String greeting) {
+        Preconditions.checkNotNull(greeting);
+        this.greeting = greeting;
+    }
+
+    public String getPrompt() {
+        return prompt;
+    }
+
+    public void setPrompt(String prompt) {
+        this.prompt = prompt;
     }
 }

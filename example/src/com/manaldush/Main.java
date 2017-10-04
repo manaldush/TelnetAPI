@@ -15,6 +15,7 @@ public class Main {
 
     public static void main(String[] args) throws UnknownHostException, ConfigurationException, InterruptedException {
         Configuration conf = Configuration.build("wks-meyle", 1022);
+        //conf.setGreeting("Welcome!!!");
         ConfigurationWrapper configurationWrapper = ConfigurationWrapper.build(conf, null);
         IController controller = new ImplController();
         controller.register(CommandTemplate.build("test", "description", new ICommandProcessorFactory() {
@@ -40,7 +41,7 @@ public class Main {
         }));
         controller.configure(configurationWrapper);
         controller.start();
-        Thread.sleep(60000);
+        Thread.sleep(600000);
         controller.stop();
     }
 }
