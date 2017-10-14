@@ -2,11 +2,16 @@ package com.manaldush.telnet.protocol;
 
 import com.google.common.base.Preconditions;
 import com.manaldush.telnet.*;
+import com.manaldush.telnet.commands.HasNoAccessCommand;
 import com.manaldush.telnet.commands.HelpCommand;
 import com.manaldush.telnet.commands.QuitCommand;
 import com.manaldush.telnet.commands.UnknownCommand;
+import com.manaldush.telnet.exceptions.AuthTelnetException;
 import com.manaldush.telnet.exceptions.ConfigurationException;
 import com.manaldush.telnet.exceptions.GeneralTelnetException;
+import com.manaldush.telnet.security.AuthTelnetClientSession;
+import com.manaldush.telnet.security.Role;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketOption;
@@ -36,18 +41,18 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
     private final static SocketOption<Boolean> TCP_NODELAY_OPT     = StandardSocketOptions.TCP_NODELAY;
     private final static SocketOption<Boolean> SO_KEEPALIVE_OPT    = StandardSocketOptions.SO_KEEPALIVE;
     private final static byte[] LOG_SESSIONS_OVER_LIMIT = "sessions limit is over".getBytes();
-    private final static String LOG_UNKNOWN_COMMAND = "unknown command";
     private static final int DATA_PORTION = 10;
     private volatile ServerSocketChannel ss;
     private volatile ConfigurationWrapper conf;
     private final Map<String, CommandTemplate> commandTemplates = new HashMap<>();
-    private final Map<SocketChannel, IClientSession> sessions = new HashMap<>();
+    private final Map<SocketChannel, AuthTelnetClientSession> sessions = new HashMap<>();
     private volatile STATUS status = STATUS.INITIALIZE;
     private volatile Selector selector;
     private int sessionsNumber = 0;
     private final Semaphore state = new Semaphore(1);
     private Thread executor = null;
     private static final Command UNKNOWN_COMMAND = createUnknownCommand();
+    private static final Command HAS_NO_ACCESS_COMMAND = createHasNoAccessCommand();
 
     public ImplController() {
     }
@@ -175,9 +180,9 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         } finally {
             // close all sessions and wait closing all sessions
             synchronized (this) {
-                for (Map.Entry<SocketChannel, IClientSession> pair : sessions.entrySet()) {
-                    IClientSession session = pair.getValue();
-                    session.close();
+                for (Map.Entry<SocketChannel, AuthTelnetClientSession> pair : sessions.entrySet()) {
+                    AuthTelnetClientSession session = pair.getValue();
+                    session.getSession().close();
                 }
             }
             try {
@@ -201,11 +206,12 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
                 if (client == null) continue;
                 SelectionKey clientKey = configureClientSocket(client);
                 IClientSession session = new ImplTelnetClientSession(client, this, DATA_PORTION, clientKey, conf.getConf().getPrompt());
+                AuthTelnetClientSession authSession = new AuthTelnetClientSession(session);
                 boolean denySess = true;
                 synchronized (this) {
                     if (acceptSession()) {
                         if (sessions.size() == 0) state.acquire();
-                        sessions.put(client, session);
+                        sessions.put(client, authSession);
                         denySess = false;
                     }
                 }
@@ -213,27 +219,54 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
                     session.write(LOG_SESSIONS_OVER_LIMIT);
                     session.close();
                 } else {
-                    session.write(Constants.GREEN);
-                    session.write(conf.getConf().getGreeting());
-                    session.write(CRLF);
-                    session.write(conf.getConf().getPrompt());
-                    session.write(Constants.RESET_COLOR);
+                    getUserName(session);
                 }
             } else if (key.isReadable()) {
                 SocketChannel client = (SocketChannel) key.channel();
                 if (client == null) continue;
+                AuthTelnetClientSession authSession;
                 IClientSession session;
                 synchronized (this) {
-                    session = sessions.get(client);
+                    authSession = sessions.get(client);
                 }
                 // Check Session was reset
-                if (session == null) continue;
+                if (authSession == null) continue;
+                session = authSession.getSession();
                 try {
-                    addTasks(this.readData(client, session), session);
+                    if (!authSession.hasUserName()) {
+                        List<String> lines = this.readData(client, authSession.getSession());
+                        if (lines != null && !lines.isEmpty()) {
+                            authSession.setUserName(lines.get(0));
+                            session.resetBuffer();
+                            this.getPassword(authSession.getSession());
+                            continue;
+                        }
+                    } else if (!authSession.hasPasswd()) {
+                        List<String> lines = this.readData(client, authSession.getSession());
+                        if (lines != null && !lines.isEmpty()) {
+                            authSession.setPasswd(lines.get(0));
+                            session.resetBuffer();
+                            authSession.checkUser();
+                            if (authSession.isAuthFailed()) {
+                                session.write(Constants.RED);
+                                session.write("Illegal credentials");
+                                session.write(Constants.RESET_COLOR);
+                                session.write(CRLF);
+                                throw new AuthTelnetException("Authentification error");
+                            }
+                            session.write(Constants.GREEN);
+                            session.write(conf.getConf().getGreeting());
+                            session.write(CRLF);
+                            session.write(conf.getConf().getPrompt());
+                            session.write(Constants.RESET_COLOR);
+                            continue;
+                        }
+                    }
+                    addTasks(this.readData(client, authSession.getSession()), authSession);
                 } catch (GeneralTelnetException | IOException e) {
                     e.printStackTrace();
-                    status = STATUS.STOPPED;
-                    session.close();
+                    //status = STATUS.STOPPED;
+                    authSession.getSession().close();
                 }
             }
         }
@@ -285,7 +318,7 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         return lines;
     }
 
-    private void addTasks(List<String> _lines, IClientSession _session) throws IOException {
+    private void addTasks(List<String> _lines, AuthTelnetClientSession _session) throws IOException {
         if (_lines == null || _lines.size() == 0) return;
         Iterator<String> iterator = _lines.iterator();
         while(iterator.hasNext()) {
@@ -297,8 +330,12 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
                 e.printStackTrace();
                 cmd = null;
             }
-            if (cmd == null) cmd = UNKNOWN_COMMAND;
-            _session.addTask(cmd);
+            if (cmd == null) {
+                cmd = UNKNOWN_COMMAND;
+            } else if (!_session.checkRoles(cmd.getTemplate())) {
+                cmd = HAS_NO_ACCESS_COMMAND;
+            }
+            _session.getSession().addTask(cmd);
         }
     }
 
@@ -315,6 +352,7 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
             }
         });
         this.register(quit);
+        quit.addRole(Role.SYSTEM_ROLE);
     }
 
     private void registerHelpCommand() {
@@ -325,6 +363,7 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
             }
         });
         this.register(help);
+        help.addRole(Role.SYSTEM_ROLE);
     }
 
     private static Command createUnknownCommand() {
@@ -337,4 +376,21 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         return Command.build(unknownCommand);
     }
 
+    private static Command createHasNoAccessCommand() {
+        final CommandTemplate hasNoAccessCommand = CommandTemplate.build("has no access", "has no access", new ICommandProcessorFactory() {
+            @Override
+            public ICommandProcessor build(Command _cmd, IClientSession _session) {
+                return HasNoAccessCommand.build(_session);
+            };
+        });
+        return Command.build(hasNoAccessCommand);
+    }
+
+    private void getUserName(IClientSession _session) throws IOException {
+        _session.write("username:");
+    }
+
+    private void getPassword(IClientSession _session) throws IOException {
+        _session.write("password:");
+    }
 }

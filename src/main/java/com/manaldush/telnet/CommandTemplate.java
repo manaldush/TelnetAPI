@@ -5,8 +5,11 @@ package com.manaldush.telnet;
  */
 
 import com.google.common.base.Preconditions;
+import com.manaldush.telnet.security.Role;
+import com.manaldush.telnet.security.User;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -24,6 +27,7 @@ public final class CommandTemplate {
     private final List<CommandOption> options;
     private static final String INDENT = "    ";
     private static final String DASH = " - ";
+    private final HashSet<String> roles = new HashSet<>();
 
     private CommandTemplate(String _command, String _description, final List<CommandOption> _options,
                             final ICommandProcessorFactory _commandProcessorFactory) {
@@ -103,5 +107,18 @@ public final class CommandTemplate {
             if (option.getOption().compareTo(_name) == 0) return option;
         }
         return null;
+    }
+
+    public void  addRole(String _r) {
+        if (Role.containRole(_r)) {
+            this.roles.add(_r);
+        }
+    }
+
+    public boolean hasAccess(User _user) {
+        for (String role: roles) {
+            if (_user.hasRole(role)) return true;
+        }
+        return false;
     }
 }

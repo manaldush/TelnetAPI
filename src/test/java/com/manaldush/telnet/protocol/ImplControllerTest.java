@@ -3,6 +3,11 @@ package com.manaldush.telnet.protocol;
 import com.manaldush.telnet.*;
 import com.manaldush.telnet.exceptions.ConfigurationException;
 import com.manaldush.telnet.exceptions.GeneralTelnetException;
+import com.manaldush.telnet.security.AuthTelnetClientSession;
+import com.manaldush.telnet.security.Role;
+import com.manaldush.telnet.security.User;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -16,6 +21,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.SocketAddress;
 import java.net.SocketOption;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.nio.channels.spi.AbstractSelectableChannel;
@@ -27,6 +33,8 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 
 /**
@@ -35,6 +43,20 @@ import static org.mockito.Mockito.times;
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(AbstractSelectableChannel.class)
 public class ImplControllerTest {
+
+    @BeforeClass
+    public static void init() {
+        Role.build("admin");
+        Set<String> roles = new HashSet<>();
+        roles.add("admin");
+        User.build("user", "user", roles);
+    }
+
+    @AfterClass
+    public static void release() {
+        Role.clear();
+        User.clear();
+    }
 
     public final class TestContext {
         private ConfigurationWrapper conf = null;
@@ -197,9 +219,13 @@ public class ImplControllerTest {
         // mock session object for returning decoding string
         field = controller.getClass().getDeclaredField("sessions");
         field.setAccessible(true);
-        Map<SocketChannel, IClientSession> sessions = (Map<SocketChannel, IClientSession>)field.get(controller);
+        Map<SocketChannel, AuthTelnetClientSession> sessions = (Map<SocketChannel, AuthTelnetClientSession>)field.get(controller);
         IClientSession session = PowerMockito.mock(IClientSession.class);
-        sessions.put(context.getChannel(), session);
+        AuthTelnetClientSession authSession = new AuthTelnetClientSession(session);
+        authSession.setPasswd("user");
+        authSession.setUserName("user");
+        authSession.checkUser();
+        sessions.put(context.getChannel(), authSession);
         decodedLines.clear();
         decodedLines.add("test");
         PowerMockito.when(session.decode(any(ByteBuffer.class), anyInt())).thenReturn(decodedLines);
@@ -271,6 +297,101 @@ public class ImplControllerTest {
         Mockito.verify(session).close();
     }
 
+
+    @Test
+    @PrepareForTest({ImplController.class, SelectionKey.class, Selector.class, SocketChannel.class})
+    public void auth_success() throws InvocationTargetException, IllegalAccessException, NoSuchFieldException, IOException, NoSuchMethodException, GeneralTelnetException {
+        TestContext context = prepareServerAccept();
+        ImplController controller = context.getController();
+        List<String> decodedLines = new ArrayList<>();
+        // Execute method
+        Method processKeys = controller.getClass().getDeclaredMethod("processKeys", null);
+        processKeys.setAccessible(true);
+        processKeys.invoke(controller, null);
+
+        PowerMockito.when(context.getKey().isAcceptable()).thenReturn(false);
+        PowerMockito.when(context.getKey().isReadable()).thenReturn(true);
+        PowerMockito.when(context.getKey().channel()).thenReturn(context.getChannel());
+        Field field = controller.getClass().getDeclaredField("DATA_PORTION");
+        field.setAccessible(true);
+        int data_portion = field.getInt(controller);
+        when(context.getChannel().read(any(ByteBuffer.class))).thenReturn(data_portion).thenReturn(0);
+
+        // mock session object for returning decoding string
+        field = controller.getClass().getDeclaredField("sessions");
+        field.setAccessible(true);
+        Map<SocketChannel, AuthTelnetClientSession> sessions = (Map<SocketChannel, AuthTelnetClientSession>)field.get(controller);
+        IClientSession session = PowerMockito.mock(IClientSession.class);
+        AuthTelnetClientSession authSession = new AuthTelnetClientSession(session);
+        sessions.put(context.getChannel(), authSession);
+        decodedLines.clear();
+        decodedLines.add("user");
+        PowerMockito.when(session.decode(any(ByteBuffer.class), anyInt())).thenReturn(decodedLines);
+        //invoke user name request
+        processKeys.invoke(controller, null);
+
+        // user name must be setted but paswd not
+        assertTrue(authSession.hasUserName());
+        assertFalse(authSession.hasPasswd());
+        assertFalse(authSession.isAuthFailed());
+
+        //invoke user passwd request
+        PowerMockito.when(session.decode(any(ByteBuffer.class), anyInt())).thenReturn(decodedLines);
+        when(context.getChannel().read(any(ByteBuffer.class))).thenReturn(data_portion).thenReturn(0);
+        processKeys.invoke(controller, null);
+        // user name must be setted, paswd was successfully stted
+        assertTrue(authSession.hasUserName());
+        assertTrue(authSession.hasPasswd());
+        assertFalse(authSession.isAuthFailed());
+    }
+
+    @Test
+    @PrepareForTest({ImplController.class, SelectionKey.class, Selector.class, SocketChannel.class})
+    public void auth_failed() throws InvocationTargetException, IllegalAccessException, NoSuchFieldException, IOException, NoSuchMethodException, GeneralTelnetException {
+        TestContext context = prepareServerAccept();
+        ImplController controller = context.getController();
+        List<String> decodedLines = new ArrayList<>();
+        // Execute method
+        Method processKeys = controller.getClass().getDeclaredMethod("processKeys", null);
+        processKeys.setAccessible(true);
+        processKeys.invoke(controller, null);
+
+        PowerMockito.when(context.getKey().isAcceptable()).thenReturn(false);
+        PowerMockito.when(context.getKey().isReadable()).thenReturn(true);
+        PowerMockito.when(context.getKey().channel()).thenReturn(context.getChannel());
+        Field field = controller.getClass().getDeclaredField("DATA_PORTION");
+        field.setAccessible(true);
+        int data_portion = field.getInt(controller);
+        when(context.getChannel().read(any(ByteBuffer.class))).thenReturn(data_portion).thenReturn(0);
+
+        // mock session object for returning decoding string
+        field = controller.getClass().getDeclaredField("sessions");
+        field.setAccessible(true);
+        Map<SocketChannel, AuthTelnetClientSession> sessions = (Map<SocketChannel, AuthTelnetClientSession>)field.get(controller);
+        IClientSession session = PowerMockito.mock(IClientSession.class);
+        AuthTelnetClientSession authSession = new AuthTelnetClientSession(session);
+        sessions.put(context.getChannel(), authSession);
+        decodedLines.clear();
+        decodedLines.add("test");
+        PowerMockito.when(session.decode(any(ByteBuffer.class), anyInt())).thenReturn(decodedLines);
+        //invoke user name request
+        processKeys.invoke(controller, null);
+
+        // user name must be setted but paswd not
+        assertTrue(authSession.hasUserName());
+        assertFalse(authSession.hasPasswd());
+        assertFalse(authSession.isAuthFailed());
+
+        //invoke user passwd request
+        PowerMockito.when(session.decode(any(ByteBuffer.class), anyInt())).thenReturn(decodedLines);
+        when(context.getChannel().read(any(ByteBuffer.class))).thenReturn(data_portion).thenReturn(0);
+        processKeys.invoke(controller, null);
+        // user name must be setted, paswd was successfully stted, auth is failed
+        assertTrue(authSession.hasUserName());
+        assertTrue(authSession.hasPasswd());
+        assertTrue(authSession.isAuthFailed());
+        verify(session, times(1)).close();
+    }
 
     private TestContext prepareServerAccept() throws NoSuchFieldException, IllegalAccessException, IOException {
         ImplController controller = new ImplController();

@@ -7,9 +7,13 @@ import com.manaldush.telnet.exceptions.InterruptProcessException;
 import com.manaldush.telnet.exceptions.OperationException;
 import com.manaldush.telnet.protocol.ImplController;
 import com.manaldush.telnet.protocol.ConfigurationWrapper;
+import com.manaldush.telnet.security.Role;
+import com.manaldush.telnet.security.User;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.util.HashSet;
+import java.util.Set;
 
 public class Main {
 
@@ -40,6 +44,10 @@ public class Main {
             }
         }));
         controller.configure(configurationWrapper);
+        Role.build("admin");
+        Set<String> userRoles = new HashSet<>();
+        userRoles.add("admin");
+        User.build("test","test", userRoles);
         controller.start();
         Thread.sleep(600000);
         controller.stop();

@@ -7,13 +7,19 @@ import com.manaldush.telnet.exceptions.AbortOutputProcessException;
 import com.manaldush.telnet.exceptions.GeneralTelnetException;
 import com.manaldush.telnet.exceptions.InterruptProcessException;
 import com.manaldush.telnet.exceptions.OperationException;
+import com.manaldush.telnet.options.DefaultOption;
+import com.manaldush.telnet.options.Option;
+import com.manaldush.telnet.options.OptionState;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.manaldush.telnet.protocol.Constants.CRLF;
 
@@ -35,6 +41,7 @@ final class ImplTelnetClientSession implements IClientSession {
     private boolean stop = false;
     private IDecoder decoder;
     private final String prompt;
+    private final Map<Integer, Option> options;
 
     ImplTelnetClientSession(final SocketChannel _channel, final ImplController _controller, final int _initBufferSize,
                             SelectionKey _key, String _prompt) {
@@ -44,6 +51,8 @@ final class ImplTelnetClientSession implements IClientSession {
         decoder = new Decoder(this);
         key = _key;
         prompt = _prompt;
+        options = new HashMap<>();
+        initOptions();
     }
 
     /**
@@ -203,6 +212,62 @@ final class ImplTelnetClientSession implements IClientSession {
         innerClose();
     }
 
+    /**
+     * Return state of option on client.
+     *
+     * @param _val - option type
+     * @return - option state
+     */
+    @Override
+    public OptionState getOptionClientState(byte _val) {
+        return options.get(_val & 0xFF).getClientState();
+    }
+
+    /**
+     * Return state of option on server.
+     *
+     * @param _val - option type
+     * @return - option state
+     */
+    @Override
+    public OptionState getOptionServerState(byte _val) {
+        return options.get(_val & 0xFF).getServerState();
+    }
+
+    /**
+     * Set option state on a client.
+     *
+     * @param _val   - option value
+     * @param _state - state of option
+     */
+    @Override
+    public void setOptionClientState(byte _val, OptionState _state) {
+        options.get(_val & 0xFF).setClientState(_state);
+    }
+
+    /**
+     * Set option state on a server.
+     *
+     * @param _val   - option value
+     * @param _state - state of option
+     */
+    @Override
+    public void setOptionServerState(byte _val, OptionState _state) {
+        options.get(_val & 0xFF).setServerState(_state);
+    }
+
+    /**
+     * Sub negotiation process.
+     *
+     * @param _val     - value of option
+     * @param _b       - sub negotiation bytes between option value and SE command
+     * @param _charset
+     */
+    @Override
+    public void subNegotiation(byte _val, List<Byte> _b, Charset _charset) {
+        options.get(_val & 0xFF).setSubnegotiation(_b, this, _charset);
+    }
+
     private void innerClose() {
         if (stop) return;
         key.cancel();
@@ -257,6 +322,13 @@ final class ImplTelnetClientSession implements IClientSession {
                     close();
                 }
             }
+        }
+    }
+
+    private void initOptions() {
+        for(byte b = Byte.MIN_VALUE; b < Byte.MAX_VALUE; b++) {
+            int i = b & 0xFF;
+            options.put(i, new DefaultOption(b));
         }
     }
 }
