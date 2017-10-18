@@ -5,6 +5,7 @@ import com.manaldush.telnet.IClientSession;
 import com.manaldush.telnet.exceptions.AbortOutputProcessException;
 import com.manaldush.telnet.exceptions.GeneralTelnetException;
 import com.manaldush.telnet.exceptions.InterruptProcessException;
+import com.manaldush.telnet.options.Option;
 import com.manaldush.telnet.options.OptionState;
 import com.manaldush.telnet.protocol.processors.KeepAliveProcessor;
 import org.junit.Assert;
@@ -20,9 +21,7 @@ import java.util.List;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyByte;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 /**
  * Created by Maxim.Melnikov on 27.06.2017.
@@ -143,39 +142,227 @@ public class DecoderTest {
     @Test
     public void test_8() throws GeneralTelnetException, IOException {
         // test command options
-        // DO NOT
+        // DO NOT command, state disable
         IClientSession session = Mockito.mock(IClientSession.class);
+        Option option = mock(Option.class);
+        when(option.getServerState()).thenReturn(OptionState.DISABLE);
+        when(option.isServerSupported()).thenReturn(true);
+        when(session.getOption(anyByte())).thenReturn(option);
         Decoder decoder = new Decoder(session);
         ByteBuffer buffer = ByteBuffer.allocate(100);
         byte[] cmd = {(byte)Constants.IAC, (byte)Constants.DO_NOT, 0x01};
         buffer.put(cmd);
         List<String> decodedLines = decoder.decode(buffer, 3);
-        Mockito.verify(session).write(any(byte[].class));
+        Mockito.verify(session, times(0)).write(any(byte[].class));
+        verify(option, times(0)).setServerState(any(OptionState.class));
         assertTrue(decodedLines.size() == 0);
 
-        // DO
+        // DO NOT command, state disabling
+        when(option.getServerState()).thenReturn(OptionState.DISABLING);
+        decodedLines = decoder.decode(buffer, 3);
+        Mockito.verify(session, times(0)).write(any(byte[].class));
+        verify(option, times(1)).setServerState(OptionState.DISABLE);
+        assertTrue(decodedLines.size() == 0);
+        reset(option);
+
+        // DO NOT command, state enabling
+        when(option.getServerState()).thenReturn(OptionState.ENABLING);
+        when(option.isServerSupported()).thenReturn(true);
+        decodedLines = decoder.decode(buffer, 3);
+        Mockito.verify(session, times(0)).write(any(byte[].class));
+        verify(option, times(1)).setServerState(OptionState.DISABLE);
+        assertTrue(decodedLines.size() == 0);
+        reset(option);
+
+        // DO NOT command, state enable
+        when(option.getServerState()).thenReturn(OptionState.ENABLE);
+        when(option.isServerSupported()).thenReturn(true);
+        decodedLines = decoder.decode(buffer, 3);
+        Mockito.verify(session, times(1)).write(any(byte[].class));
+        verify(option, times(1)).setServerState(OptionState.DISABLE);
+        assertTrue(decodedLines.size() == 0);
+        reset(option);
+        reset(session);
+
+        // option not supported
+        when(option.getServerState()).thenReturn(OptionState.DISABLE);
+        when(option.isServerSupported()).thenReturn(false);
+        when(session.getOption(anyByte())).thenReturn(option);
+        decodedLines = decoder.decode(buffer, 3);
+        Mockito.verify(session, times(0)).write(any(byte[].class));
+        verify(option, times(0)).setServerState(any(OptionState.class));
+        assertTrue(decodedLines.size() == 0);
+
+
+        // DO, state disable, option is supported
+        option = mock(Option.class);
+        when(option.getServerState()).thenReturn(OptionState.DISABLE);
+        when(option.isServerSupported()).thenReturn(true);
+        session = Mockito.mock(IClientSession.class);
+        when(session.getOption(anyByte())).thenReturn(option);
+        decoder = new Decoder(session);
         ByteBuffer buffer2 = ByteBuffer.allocate(100);
         byte[] cmd2 = {(byte)Constants.IAC, (byte)Constants.DO, 0x01};
         buffer2.put(cmd2);
         decodedLines = decoder.decode(buffer2, 3);
-        Mockito.verify(session, times(2)).write(any(byte[].class));
+        Mockito.verify(session, times(1)).write(any(byte[].class));
+        verify(option, times(1)).setServerState(OptionState.ENABLE);
         assertTrue(decodedLines.size() == 0);
+        reset(session);
+        reset(option);
 
-        // WILL
+
+        // DO, state disabling, option is supported
+        when(option.getServerState()).thenReturn(OptionState.DISABLING);
+        when(option.isServerSupported()).thenReturn(true);
+        when(session.getOption(anyByte())).thenReturn(option);
+        decodedLines = decoder.decode(buffer2, 3);
+        Mockito.verify(session, times(0)).write(any(byte[].class));
+        verify(option, times(1)).setServerState(OptionState.ENABLE);
+        assertTrue(decodedLines.size() == 0);
+        reset(session);
+        reset(option);
+
+        // DO, state enable, option is supported
+        when(option.getServerState()).thenReturn(OptionState.ENABLE);
+        when(option.isServerSupported()).thenReturn(true);
+        when(session.getOption(anyByte())).thenReturn(option);
+        decodedLines = decoder.decode(buffer2, 3);
+        Mockito.verify(session, times(0)).write(any(byte[].class));
+        verify(option, times(0)).setServerState(any(OptionState.class));
+        assertTrue(decodedLines.size() == 0);
+        reset(session);
+        reset(option);
+
+
+        // DO, state enable, option is supported
+        when(option.getServerState()).thenReturn(OptionState.ENABLING);
+        when(option.isServerSupported()).thenReturn(true);
+        when(session.getOption(anyByte())).thenReturn(option);
+        decodedLines = decoder.decode(buffer2, 3);
+        Mockito.verify(session, times(0)).write(any(byte[].class));
+        verify(option, times(1)).setServerState(OptionState.ENABLE);
+        assertTrue(decodedLines.size() == 0);
+        reset(session);
+        reset(option);
+
+
+        // WILL, state enable, option is supported
         ByteBuffer buffer3 = ByteBuffer.allocate(100);
         byte[] cmd3 = {(byte)Constants.IAC, (byte)Constants.WILL, 0x01};
         buffer3.put(cmd3);
+        when(option.getClientState()).thenReturn(OptionState.ENABLE);
+        when(option.isClientSupported()).thenReturn(true);
+        when(session.getOption(anyByte())).thenReturn(option);
         decodedLines = decoder.decode(buffer3, 3);
-        Mockito.verify(session, times(3)).write(any(byte[].class));
+        Mockito.verify(session, times(0)).write(any(byte[].class));
+        verify(option, times(0)).setClientState(any(OptionState.class));
         assertTrue(decodedLines.size() == 0);
+        reset(session);
+        reset(option);
 
-        // WILL_NOT
+        // WILL, state enabling, option is supported
+        when(option.getClientState()).thenReturn(OptionState.ENABLING);
+        when(option.isClientSupported()).thenReturn(true);
+        when(session.getOption(anyByte())).thenReturn(option);
+        decodedLines = decoder.decode(buffer3, 3);
+        Mockito.verify(session, times(0)).write(any(byte[].class));
+        verify(option, times(1)).setClientState(OptionState.ENABLE);
+        assertTrue(decodedLines.size() == 0);
+        reset(session);
+        reset(option);
+
+        // WILL, state disable, option is supported
+        when(option.getClientState()).thenReturn(OptionState.DISABLE);
+        when(option.isClientSupported()).thenReturn(true);
+        when(session.getOption(anyByte())).thenReturn(option);
+        decodedLines = decoder.decode(buffer3, 3);
+        Mockito.verify(session, times(1)).write(any(byte[].class));
+        verify(option, times(1)).setClientState(OptionState.ENABLE);
+        assertTrue(decodedLines.size() == 0);
+        reset(session);
+        reset(option);
+
+        // WILL, state disabling, option is supported
+        when(option.getClientState()).thenReturn(OptionState.DISABLING);
+        when(option.isClientSupported()).thenReturn(true);
+        when(session.getOption(anyByte())).thenReturn(option);
+        decodedLines = decoder.decode(buffer3, 3);
+        Mockito.verify(session, times(0)).write(any(byte[].class));
+        verify(option, times(1)).setClientState(OptionState.ENABLE);
+        assertTrue(decodedLines.size() == 0);
+        reset(session);
+        reset(option);
+
+        // WILL, option is not supported
+        when(option.isClientSupported()).thenReturn(false);
+        when(session.getOption(anyByte())).thenReturn(option);
+        decodedLines = decoder.decode(buffer3, 3);
+        Mockito.verify(session, times(1)).write(any(byte[].class));
+        verify(option, times(0)).setClientState(any(OptionState.class));
+        assertTrue(decodedLines.size() == 0);
+        reset(session);
+        reset(option);
+
+
+        // WILL_NOT, state ENABLE, is supported
         ByteBuffer buffer4 = ByteBuffer.allocate(100);
         byte[] cmd4 = {(byte)Constants.IAC, (byte)Constants.WILL_NOT, 0x01};
         buffer4.put(cmd4);
+        when(option.getClientState()).thenReturn(OptionState.ENABLE);
+        when(option.isClientSupported()).thenReturn(true);
+        when(session.getOption(anyByte())).thenReturn(option);
         decodedLines = decoder.decode(buffer4, 3);
-        Mockito.verify(session, times(4)).write(any(byte[].class));
+        Mockito.verify(session, times(1)).write(any(byte[].class));
+        verify(option, times(1)).setClientState(OptionState.DISABLE);
         assertTrue(decodedLines.size() == 0);
+        reset(session);
+        reset(option);
+
+        // WILL_NOT, state ENABLING, is supported
+        when(option.getClientState()).thenReturn(OptionState.ENABLING);
+        when(option.isClientSupported()).thenReturn(true);
+        when(session.getOption(anyByte())).thenReturn(option);
+        decodedLines = decoder.decode(buffer4, 3);
+        Mockito.verify(session, times(0)).write(any(byte[].class));
+        verify(option, times(1)).setClientState(OptionState.DISABLE);
+        assertTrue(decodedLines.size() == 0);
+        reset(session);
+        reset(option);
+
+        // WILL_NOT, state DISABLE, is supported
+        when(option.getClientState()).thenReturn(OptionState.DISABLE);
+        when(option.isClientSupported()).thenReturn(true);
+        when(session.getOption(anyByte())).thenReturn(option);
+        decodedLines = decoder.decode(buffer4, 3);
+        Mockito.verify(session, times(0)).write(any(byte[].class));
+        verify(option, times(0)).setClientState(any(OptionState.class));
+        assertTrue(decodedLines.size() == 0);
+        reset(session);
+        reset(option);
+
+
+        // WILL_NOT, state DISABLE, is supported
+        when(option.getClientState()).thenReturn(OptionState.DISABLING);
+        when(option.isClientSupported()).thenReturn(true);
+        when(session.getOption(anyByte())).thenReturn(option);
+        decodedLines = decoder.decode(buffer4, 3);
+        Mockito.verify(session, times(0)).write(any(byte[].class));
+        verify(option, times(1)).setClientState(OptionState.DISABLE);
+        assertTrue(decodedLines.size() == 0);
+        reset(session);
+        reset(option);
+
+        // WILL_NOT, is not supported
+        when(option.isClientSupported()).thenReturn(false);
+        when(session.getOption(anyByte())).thenReturn(option);
+        decodedLines = decoder.decode(buffer4, 3);
+        Mockito.verify(session, times(0)).write(any(byte[].class));
+        verify(option, times(0)).setClientState(any(OptionState.class));
+        assertTrue(decodedLines.size() == 0);
+        reset(session);
+        reset(option);
+
     }
 
     @Test
@@ -289,24 +476,15 @@ public class DecoderTest {
 
             }
 
+            /**
+             * Return option.
+             *
+             * @param _val - option type
+             * @return - option state
+             */
             @Override
-            public OptionState getOptionClientState(byte _val) {
+            public Option getOption(byte _val) {
                 return null;
-            }
-
-            @Override
-            public OptionState getOptionServerState(byte _val) {
-                return null;
-            }
-
-            @Override
-            public void setOptionClientState(byte _val, OptionState _state) {
-
-            }
-
-            @Override
-            public void setOptionServerState(byte _val, OptionState _state) {
-
             }
 
             @Override
@@ -317,6 +495,11 @@ public class DecoderTest {
                 assertTrue((_b.get(1) & 0xFF) == 0x03);
                 assertTrue((_b.get(2) & 0xFF) == 0x04);
                 test12 = true;
+            }
+
+            @Override
+            public void prompt() throws IOException {
+
             }
         };
         Decoder decoder = new Decoder(session);

@@ -3,6 +3,7 @@ package com.manaldush.telnet;
 import com.manaldush.telnet.exceptions.AbortOutputProcessException;
 import com.manaldush.telnet.exceptions.GeneralTelnetException;
 import com.manaldush.telnet.exceptions.InterruptProcessException;
+import com.manaldush.telnet.options.Option;
 import com.manaldush.telnet.options.OptionState;
 
 import java.io.IOException;
@@ -87,32 +88,11 @@ public interface IClientSession {
     void close();
 
     /**
-     * Return state of option on client.
+     * Return option.
      * @param _val - option type
      * @return - option state
      */
-    OptionState getOptionClientState(byte _val);
-
-    /**
-     * Return state of option on server.
-     * @param _val - option type
-     * @return - option state
-     */
-    OptionState getOptionServerState(byte _val);
-
-    /**
-     * Set option state on a client.
-     * @param _val - option value
-     * @param _state - state of option
-     */
-    void setOptionClientState(byte _val, OptionState _state);
-
-    /**
-     * Set option state on a server.
-     * @param _val - option value
-     * @param _state - state of option
-     */
-    void setOptionServerState(byte _val, OptionState _state);
+    Option getOption(byte _val);
 
     /**
      * Sub negotiation process.
@@ -120,4 +100,6 @@ public interface IClientSession {
      * @param _b - sub negotiation bytes between option value and SE command
      */
     void subNegotiation(byte _val, List<Byte> _b, Charset _charset);
+
+    void prompt() throws IOException;
 }

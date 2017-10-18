@@ -51,4 +51,6 @@ public final class Constants {
     public static final int WILL_NOT          = 0xFC;// Indicates the refusal to perform, or continue performing, the indicated option.
     public static final int DO                = 0xFD;// Indicates the request that the other party perform, or confirmation that you are expecting the other party to perform, the indicated option.
     public static final int DO_NOT            = 0xFE;// Indicates the demand that the other party stop performing, or confirmation that you are no longer expecting the other party to perform, the indicated option.
+    public static final int OPT_SUPPRESS_GO_AHEAD = 0x01;
+    public static final int OPT_ECHO = 0x03;
 }

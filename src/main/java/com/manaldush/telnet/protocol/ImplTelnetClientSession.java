@@ -8,6 +8,7 @@ import com.manaldush.telnet.exceptions.GeneralTelnetException;
 import com.manaldush.telnet.exceptions.InterruptProcessException;
 import com.manaldush.telnet.exceptions.OperationException;
 import com.manaldush.telnet.options.DefaultOption;
+import com.manaldush.telnet.options.NotSupportedOption;
 import com.manaldush.telnet.options.Option;
 import com.manaldush.telnet.options.OptionState;
 
@@ -219,41 +220,8 @@ final class ImplTelnetClientSession implements IClientSession {
      * @return - option state
      */
     @Override
-    public OptionState getOptionClientState(byte _val) {
-        return options.get(_val & 0xFF).getClientState();
-    }
-
-    /**
-     * Return state of option on server.
-     *
-     * @param _val - option type
-     * @return - option state
-     */
-    @Override
-    public OptionState getOptionServerState(byte _val) {
-        return options.get(_val & 0xFF).getServerState();
-    }
-
-    /**
-     * Set option state on a client.
-     *
-     * @param _val   - option value
-     * @param _state - state of option
-     */
-    @Override
-    public void setOptionClientState(byte _val, OptionState _state) {
-        options.get(_val & 0xFF).setClientState(_state);
-    }
-
-    /**
-     * Set option state on a server.
-     *
-     * @param _val   - option value
-     * @param _state - state of option
-     */
-    @Override
-    public void setOptionServerState(byte _val, OptionState _state) {
-        options.get(_val & 0xFF).setServerState(_state);
+    public Option getOption(byte _val) {
+        return options.get(_val & 0xFF);
     }
 
     /**
@@ -266,6 +234,13 @@ final class ImplTelnetClientSession implements IClientSession {
     @Override
     public void subNegotiation(byte _val, List<Byte> _b, Charset _charset) {
         options.get(_val & 0xFF).setSubnegotiation(_b, this, _charset);
+    }
+
+    @Override
+    public void prompt() throws IOException {
+        write(Constants.GREEN);
+        write(str2Bytes(prompt));
+        write(Constants.RESET_COLOR);
     }
 
     private void innerClose() {
@@ -302,9 +277,7 @@ final class ImplTelnetClientSession implements IClientSession {
                         currentThread = null;
                         try {
                             ImplTelnetClientSession.this.write(CRLF);
-                            ImplTelnetClientSession.this.write(Constants.GREEN);
-                            ImplTelnetClientSession.this.write(str2Bytes(prompt));
-                            ImplTelnetClientSession.this.write(Constants.RESET_COLOR);
+                            prompt();
                         } catch (IOException e) {
                             e.printStackTrace();
                             innerClose();
@@ -328,7 +301,16 @@ final class ImplTelnetClientSession implements IClientSession {
     private void initOptions() {
         for(byte b = Byte.MIN_VALUE; b < Byte.MAX_VALUE; b++) {
             int i = b & 0xFF;
-            options.put(i, new DefaultOption(b));
+            switch (i) {
+                case Constants.OPT_SUPPRESS_GO_AHEAD:
+                    options.put(i, new DefaultOption(b, false, true));
+                    break;
+                case Constants.OPT_ECHO:
+                    options.put(i, new DefaultOption(b, false, true));
+                    break;
+                default:
+                    options.put(i, new NotSupportedOption(b));
+            }
         }
     }
 }

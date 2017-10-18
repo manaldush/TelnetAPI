@@ -256,9 +256,9 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
                             }
                             session.write(Constants.GREEN);
                             session.write(conf.getConf().getGreeting());
-                            session.write(CRLF);
-                            session.write(conf.getConf().getPrompt());
                             session.write(Constants.RESET_COLOR);
+                            session.write(CRLF);
+                            session.prompt();
                             continue;
                         }
                     }

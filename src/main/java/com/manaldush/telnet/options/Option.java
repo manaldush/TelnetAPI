@@ -1,18 +1,20 @@
 package com.manaldush.telnet.options;
 
-import com.google.common.base.Preconditions;
 import com.manaldush.telnet.IClientSession;
-
 import java.nio.charset.Charset;
 import java.util.List;
 
 public abstract class Option {
     private final byte bValue;
     private final int iValue;
+    private final boolean isClientSupported;
+    private final boolean isServerSupported;
 
-    protected Option(byte _v) {
+    protected Option(byte _v, boolean _isClientSupported, boolean _isServerSupported) {
         bValue = _v;
         iValue = bValue & 0xFF;
+        isClientSupported = _isClientSupported;
+        isServerSupported = _isServerSupported;
     }
 
     private OptionState clientState = OptionState.DISABLE;
@@ -23,7 +25,8 @@ public abstract class Option {
     }
 
     public void setClientState(OptionState clientState) {
-        this.clientState = clientState;
+        if (isClientSupported) this.clientState = clientState;
+        else genIllegalState();
     }
 
     public OptionState getServerState() {
@@ -31,7 +34,8 @@ public abstract class Option {
     }
 
     public void setServerState(OptionState serverState) {
-        this.serverState = serverState;
+        if (isServerSupported) this.serverState = serverState;
+        else genIllegalState();
     }
 
     public byte getByteValue() {
@@ -40,5 +44,22 @@ public abstract class Option {
 
     public int getIntValue() {return iValue;}
 
-    public abstract void setSubnegotiation(List<Byte> _b, IClientSession _session, Charset _charset);
+    public final void setSubnegotiation(List<Byte> _b, IClientSession _session, Charset _charset) {
+        if (isServerSupported || isClientSupported) innerSubNegotiation(_b, _session, _charset);
+        else genIllegalState();
+    }
+
+    protected abstract void innerSubNegotiation(List<Byte> _b, IClientSession _session, Charset _charset);
+
+    private void genIllegalState() {
+        throw new IllegalStateException(String.format("Option [%d] is not supported", iValue));
+    }
+
+    public boolean isClientSupported() {
+        return isClientSupported;
+    }
+
+    public boolean isServerSupported() {
+        return isServerSupported;
+    }
 }

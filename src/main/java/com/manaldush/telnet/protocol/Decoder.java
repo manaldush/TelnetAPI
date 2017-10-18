@@ -182,7 +182,7 @@ final class Decoder implements IDecoder {
         }
     }
 
-    private void processDataByte(byte b, List<String> result) {
+    private void processDataByte(byte b, List<String> result) throws IOException {
         if ((b & 0xFF) == Constants.CR) {
             CR_FLAG = true;
         } else if ((b & 0xFF) == Constants.LF && CR_FLAG) {
@@ -194,6 +194,8 @@ final class Decoder implements IDecoder {
                 byte[] bytesBuffer = new byte[buffer.limit()];
                 buffer.get(bytesBuffer, 0, buffer.limit());
                 result.add(new String(bytesBuffer, charset));
+            } else {
+                this.session.prompt();
             }
         } else if (CR_FLAG) {
             session.addBuffer((byte) Constants.CR);

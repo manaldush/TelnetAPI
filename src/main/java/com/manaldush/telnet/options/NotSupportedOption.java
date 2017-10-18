@@ -5,9 +5,9 @@ import com.manaldush.telnet.IClientSession;
 import java.nio.charset.Charset;
 import java.util.List;
 
-public class DefaultOption extends Option {
-    public DefaultOption(byte _v, boolean _isClientSupported, boolean _isServerSupported) {
-        super(_v, _isClientSupported, _isServerSupported);
+public class NotSupportedOption extends Option {
+    public NotSupportedOption(byte _v) {
+        super(_v, false, false);
     }
 
     @Override
