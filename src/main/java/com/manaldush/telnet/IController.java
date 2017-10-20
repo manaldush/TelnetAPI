@@ -5,29 +5,32 @@ import java.text.ParseException;
 
 /**
  * Describe interface of object, that control telnet module.
- * E object is implementation of interface clonable and describe configuration of controller.
+ *
+ * @param <E> object is implementation of interface cloneable and describe
+ * configuration of controller.
+ *
  * Created by Maxim.Melnikov on 20.06.2017.
  */
 public interface IController<E extends Cloneable> {
     /**
      * Registration of command in controller.
-     * @param _template - command template
+     * @param template - command template
      */
-    void register(CommandTemplate _template);
+    void register(CommandTemplate template);
     /**
      * Unregister command in controller.
-     * @param _template - command template as CommandTemplate object
+     * @param template - command template as CommandTemplate object.
      */
-    void unregister(CommandTemplate _template);
+    void unregister(CommandTemplate template);
 
     /**
      * Unregister command in controller.
-     * @param _template - command template as string
+     * @param template - command template as string
      */
-    void unregister(String _template);
+    void unregister(String template);
 
     /**
-     * Start controller/
+     * Start controller.
      */
     void start();
 
@@ -38,15 +41,16 @@ public interface IController<E extends Cloneable> {
 
     /**
      * Return command object appropriate to given String.
-     * @param _command - string representation of command with options
+     * @param command - string representation of command with options
      * @return - command
-     * @throws ParseException - parse Exception of incoming String, illegal options
+     * @throws ParseException - any parse Exception of incoming String
      */
-    Command search(String _command) throws ParseException;
+    Command search(String command) throws ParseException;
 
     /**
      * Configure Controller object.
-     * @param _conf - configuration object
+     * @param conf - configuration object
+     * @throws ConfigurationException - any configuration error
      */
-    void configure(E _conf) throws ConfigurationException;
+    void configure(E conf) throws ConfigurationException;
 }

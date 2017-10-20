@@ -20,8 +20,9 @@ public class Main {
     public static void main(String[] args) throws UnknownHostException, ConfigurationException, InterruptedException {
         // Set address and port
         Configuration conf = Configuration.build("wks-meyle", 1022);
+        conf.setPrompt(">>>: ");
         // Set greet string
-        conf.setGreeting("Welcome!!!");
+        conf.setGreeting("Demonstration of telnet command line!!!");
         ConfigurationWrapper configurationWrapper = ConfigurationWrapper.build(conf, null);
         IController controller = new ImplController();
         controller.configure(configurationWrapper);

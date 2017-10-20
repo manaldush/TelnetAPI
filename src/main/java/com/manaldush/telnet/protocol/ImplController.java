@@ -323,6 +323,10 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         Iterator<String> iterator = _lines.iterator();
         while(iterator.hasNext()) {
             String line = iterator.next();
+            if (line== null || line.isEmpty()) {
+                _session.getSession().prompt();
+                continue;
+            }
             Command cmd = null;
             try {
                 cmd = this.search(line);

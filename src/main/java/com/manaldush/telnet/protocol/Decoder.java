@@ -195,7 +195,7 @@ final class Decoder implements IDecoder {
                 buffer.get(bytesBuffer, 0, buffer.limit());
                 result.add(new String(bytesBuffer, charset));
             } else {
-                this.session.prompt();
+                result.add("");
             }
         } else if (CR_FLAG) {
             session.addBuffer((byte) Constants.CR);
