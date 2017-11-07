@@ -22,6 +22,7 @@ public interface ICommandParser {
     /**
      * Parse options string and return map<option,value>.
      *
+     * @return Map - map of parsed options: option name, option value
      * @throws ParseException - any parse exception during parsing
      */
     Map<String, String> parseOptions() throws ParseException;

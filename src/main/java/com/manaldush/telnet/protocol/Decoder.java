@@ -3,7 +3,13 @@ package com.manaldush.telnet.protocol;
 import com.manaldush.telnet.IClientSession;
 import com.manaldush.telnet.exceptions.DecodingException;
 import com.manaldush.telnet.exceptions.GeneralTelnetException;
-import com.manaldush.telnet.protocol.processors.*;
+import com.manaldush.telnet.protocol.processors.AbortOutputProcessor;
+import com.manaldush.telnet.protocol.processors.EraseLineProcessor;
+import com.manaldush.telnet.protocol.processors.InterruptionProcessor;
+import com.manaldush.telnet.protocol.processors.KeepAliveProcessor;
+import com.manaldush.telnet.protocol.processors.NegotiationOptionsProcessor;
+import com.manaldush.telnet.protocol.processors.EraseCharacterProcessor;
+import com.manaldush.telnet.protocol.processors.SubNegotiationEndCommand;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -12,21 +18,23 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
+import static com.manaldush.telnet.protocol.Constants.BYTE_FF;
+
 /**
  * Implementation of IDecoder interface.
  * Created by Maxim.Melnikov on 26.06.2017.
  */
 final class Decoder implements IDecoder {
     private final IClientSession session;
-    private final static int RESET_BYTE_VALUE = -1;
-    private final static boolean RESET_IAC_FLAG = false;
-    private final static boolean RESET_CR_FLAG = false;
-    private final static boolean RESET_CMD_FLAG = false;
-    private boolean IAC_FLAG;
-    private boolean CMD_FLAG;
+    private static final int RESET_BYTE_VALUE = -1;
+    private static final boolean RESET_IAC_FLAG = false;
+    private static final boolean RESET_CR_FLAG = false;
+    private static final boolean RESET_CMD_FLAG = false;
+    private boolean iacFlag;
+    private boolean cmdFlag;
     private byte cmd;
     private byte option;
-    private boolean CR_FLAG = RESET_CR_FLAG;
+    private boolean crFlag = RESET_CR_FLAG;
     private final Charset charset = Charset.forName("ASCII");
     private List<Byte> subNegotiation = null;
     private static final int MAX_NEGOTIATION_LEN = 1000;
@@ -46,28 +54,31 @@ final class Decoder implements IDecoder {
      * @throws IOException -  I/O errors
      */
     @Override
-    public List<String> decode(final ByteBuffer _buffer, final int _bytesNum) throws GeneralTelnetException, IOException {
+    public List<String> decode(final ByteBuffer _buffer, final int _bytesNum)
+            throws GeneralTelnetException, IOException {
         List<String> result = new ArrayList<>();
-        for(int counter=0;counter < _bytesNum;counter++) {
+        for (int counter = 0; counter < _bytesNum; counter++) {
             byte b = _buffer.get(counter);
             boolean iac = checkIAC(b);
-            if (CMD_FLAG) {
+            if (cmdFlag) {
                 boolean sb = checkSB(cmd);
-                if (iac && IAC_FLAG && sb) {
+                if (iac && iacFlag && sb) {
                     processCommandByte(b);
                     resetIAC();
                 } else if (sb && iac) {
-                    IAC_FLAG = true;
-                } else processCommandByte(b);
+                    iacFlag = true;
+                } else {
+                    processCommandByte(b);
+                }
             } else {
-                if (IAC_FLAG && iac) {
+                if (iacFlag && iac) {
                     resetIAC();
                     session.addBuffer(b);
-                } else if(!IAC_FLAG && iac) {
-                    IAC_FLAG = true;
-                } else if (IAC_FLAG && !iac) {
+                } else if (!iacFlag && iac) {
+                    iacFlag = true;
+                } else if (iacFlag && !iac) {
                     resetIAC();
-                    CMD_FLAG = true;
+                    cmdFlag = true;
                     processCommandByte(b);
                 } else {
                     processDataByte(b, result);
@@ -78,53 +89,57 @@ final class Decoder implements IDecoder {
     }
 
     private void decodeCommand() throws GeneralTelnetException, IOException {
-        int bCmd = cmd & 0xFF;
+        int bCmd = cmd & BYTE_FF;
 
         switch (bCmd) {
-            case Constants.Abort_Output:
+            case Constants.ABORT_OUTPUT:
                 AbortOutputProcessor.build(session).process();
                 reset();
                 break;
-            case Constants.Interrupt_Process:
+            case Constants.INTERRUPT_PROCESS:
                 InterruptionProcessor.build(session).process();
                 reset();
                 break;
-            case Constants.Are_You_There:
+            case Constants.ARE_YOU_THERE:
                 KeepAliveProcessor.build(session).process();
                 reset();
                 break;
-            case Constants.Erase_Line:
+            case Constants.ERASE_LINE:
                 EraseLineProcessor.build(session).process();
                 reset();
                 break;
-            case Constants.Erase_character:
+            case Constants.ERASE_CHARACTER:
                 EraseCharacterProcessor.build(session).process();
                 reset();
                 break;
             case Constants.WILL_NOT:
-                if (option == RESET_BYTE_VALUE) return;
-                else {
+                if (option == RESET_BYTE_VALUE) {
+                    return;
+                } else {
                     NegotiationOptionsProcessor.buildWILLNOT(option, session).process();
                     reset();
                 }
                 break;
             case Constants.WILL:
-                if (option == RESET_BYTE_VALUE) return;
-                else {
+                if (option == RESET_BYTE_VALUE) {
+                    return;
+                } else {
                     NegotiationOptionsProcessor.buildWILL(option, session).process();
                     reset();
                 }
                 break;
             case Constants.DO_NOT:
-                if (option == RESET_BYTE_VALUE) return;
-                else {
+                if (option == RESET_BYTE_VALUE) {
+                    return;
+                } else {
                     NegotiationOptionsProcessor.buildDONOT(option, session).process();
                     reset();
                 }
                 break;
             case Constants.DO:
-                if (option == RESET_BYTE_VALUE) return;
-                else {
+                if (option == RESET_BYTE_VALUE) {
+                    return;
+                } else {
                     NegotiationOptionsProcessor.buildDO(option, session).process();
                     reset();
                 }
@@ -143,7 +158,7 @@ final class Decoder implements IDecoder {
     }
 
     private void reset() {
-        CMD_FLAG = RESET_CMD_FLAG;
+        cmdFlag = RESET_CMD_FLAG;
         cmd = RESET_BYTE_VALUE;
         option = RESET_BYTE_VALUE;
         subNegotiation = null;
@@ -152,40 +167,45 @@ final class Decoder implements IDecoder {
     }
 
     private void resetIAC() {
-        IAC_FLAG = RESET_IAC_FLAG;
+        iacFlag = RESET_IAC_FLAG;
     }
 
     private void resetCR() {
-        CR_FLAG = RESET_CR_FLAG;
+        crFlag = RESET_CR_FLAG;
     }
 
-    private void processCommandByte(byte b) throws GeneralTelnetException, IOException {
+    private void processCommandByte(final byte _b) throws GeneralTelnetException, IOException {
         if (cmd == RESET_BYTE_VALUE) {
-            cmd = b;
+            cmd = _b;
             decodeCommand();
-        }else if(((cmd & 0xFF)) == Constants.SB) {
+        } else if (((cmd & BYTE_FF)) == Constants.SB) {
             if (option == RESET_BYTE_VALUE) {
-                option = b;
+                option = _b;
                 return;
             }
-            if (subNegotiation == null) subNegotiation = new LinkedList<>();
-            if ( IAC_FLAG && ((b & 0xFF)) == Constants.SE) {
-                cmd = b;
+            if (subNegotiation == null) {
+                subNegotiation = new LinkedList<>();
+            }
+            if (iacFlag && ((_b & BYTE_FF)) == Constants.SE) {
+                cmd = _b;
                 decodeCommand();
-            } else if (subNegotiation.size() == MAX_NEGOTIATION_LEN)
-                throw new DecodingException(String.format("Sub negotiation process: bytes length is more then max negotiation length [%d]",
+            } else if (subNegotiation.size() == MAX_NEGOTIATION_LEN) {
+                throw new DecodingException(String.format(
+                        "Sub negotiation process: bytes length is more then max negotiation length [%d]",
                         MAX_NEGOTIATION_LEN));
-            else subNegotiation.add(b);
+            } else {
+                subNegotiation.add(_b);
+            }
         } else {
-            option = b;
+            option = _b;
             decodeCommand();
         }
     }
 
-    private void processDataByte(byte b, List<String> result) throws IOException {
-        if ((b & 0xFF) == Constants.CR) {
-            CR_FLAG = true;
-        } else if ((b & 0xFF) == Constants.LF && CR_FLAG) {
+    private void processDataByte(final byte _b, final List<String> _result) throws IOException {
+        if ((_b & BYTE_FF) == Constants.CR) {
+            crFlag = true;
+        } else if ((_b & BYTE_FF) == Constants.LF && crFlag) {
             ByteBuffer buffer = session.getBuffer();
             session.resetBuffer();
             resetCR();
@@ -193,24 +213,24 @@ final class Decoder implements IDecoder {
                 buffer.flip();
                 byte[] bytesBuffer = new byte[buffer.limit()];
                 buffer.get(bytesBuffer, 0, buffer.limit());
-                result.add(new String(bytesBuffer, charset));
+                _result.add(new String(bytesBuffer, charset));
             } else {
-                result.add("");
+                _result.add("");
             }
-        } else if (CR_FLAG) {
+        } else if (crFlag) {
             session.addBuffer((byte) Constants.CR);
         } else {
-            session.addBuffer(b);
+            session.addBuffer(_b);
             resetCR();
         }
 
     }
 
-    private boolean checkIAC(byte _b) {
-        return (_b & 0xFF) == Constants.IAC;
+    private boolean checkIAC(final byte _b) {
+        return (_b & BYTE_FF) == Constants.IAC;
     }
 
-    private boolean checkSB(byte _b) {
-        return (_b & 0xFF) == Constants.SB;
+    private boolean checkSB(final byte _b) {
+        return (_b & BYTE_FF) == Constants.SB;
     }
 }

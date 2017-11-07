@@ -1,7 +1,6 @@
 package com.manaldush.telnet;
 
 import com.google.common.base.Preconditions;
-
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
@@ -10,27 +9,43 @@ import java.net.UnknownHostException;
  * Created by Maxim.Melnikov on 20.06.2017.
  */
 public final class Configuration implements Cloneable {
+    /**Default greeting string.*/
     private static final String DEFAULT_GREETING = "Alice Server Greeting!!!";
+    /**Default prompt char.*/
     private static final String DEFAULT_PROMPT = "->";
+    /**Default send buffer.*/
+    private static final int DEFAULT_SND_BUF = 1024;
+    /**Default rcv buffer.*/
+    private static final int DEFAULT_RCV_BUF = 1024;
+    /**Max port value.*/
+    private static final int MAX_PORT_VALUE = 65535;
     /**Maximum Number of simultaneous user sessions, default value = 10, 0 is not limited.*/
     private int maxSessions = 0;
-    /**Server address*/
+    /**Server address.*/
     private final InetAddress address;
+    /**Port value.*/
     private final int port;
+    /**Command parser.*/
     private ICommandParserFactory parser = new DefaultCommandParserFactory();
+    /**Greeting value.*/
     private String greeting = DEFAULT_GREETING;
-
-    private Integer SO_SNDBUF = 1024;
-
-    private Integer SO_RCVBUF = 1024;
-
-    private Boolean SO_REUSEADDR = Boolean.FALSE;
-
-    private Boolean TCP_NODELAY = Boolean.FALSE;
-
+    /**Socket send buffer size.*/
+    private Integer soSndBuf = DEFAULT_SND_BUF;
+    /**Socket receive buffer size.*/
+    private Integer soRcvBuf = DEFAULT_RCV_BUF;
+    /**Socket reuse address flag.*/
+    private Boolean soReuseAddress = Boolean.FALSE;
+    /**Socket TCP no delay flag.*/
+    private Boolean tcpNoDelay = Boolean.FALSE;
+    /**Prompt string.*/
     private String prompt = DEFAULT_PROMPT;
 
-    private Configuration(InetAddress _addr, int _port) {
+    /**
+     * Constructor of configuration object.
+     * @param _addr - address object
+     * @param _port - port value
+     */
+    private Configuration(final InetAddress _addr, final int _port) {
         address = _addr;
         port = _port;
     }
@@ -45,42 +60,74 @@ public final class Configuration implements Cloneable {
     public static Configuration build(final String _addr, final int _port) throws UnknownHostException {
         Preconditions.checkNotNull(_addr);
         Preconditions.checkArgument(0 < _port);
-        Preconditions.checkArgument(_port <= 65535);
+        Preconditions.checkArgument(_port <= MAX_PORT_VALUE);
         return new Configuration(InetAddress.getByName(_addr), _port);
     }
 
-    public Configuration setSNDBUF(final Integer SO_SNDBUF) {
-        Preconditions.checkNotNull(SO_SNDBUF);
-        Preconditions.checkArgument(SO_SNDBUF > 0);
-        this.SO_SNDBUF = SO_SNDBUF;
+    /**
+     * Set SND_BUF size socket parameter.
+     * @param _soSndBuf - SND_BUF size
+     * @return configuration object
+     */
+    public Configuration setSoSndBuf(final Integer _soSndBuf) {
+        Preconditions.checkNotNull(_soSndBuf);
+        Preconditions.checkArgument(_soSndBuf > 0);
+        this.soSndBuf = _soSndBuf;
         return this;
     }
 
-    public Configuration setRCVBUF(final Integer SO_RCVBUF) {
-        Preconditions.checkNotNull(SO_RCVBUF);
-        Preconditions.checkArgument(SO_RCVBUF > 0);
-        this.SO_RCVBUF = SO_RCVBUF;
+    /**
+     * Set RCV_BUF size socket parameter.
+     * @param _soRcvBuf - RCV_BUF size
+     * @return configuration object
+     */
+    public Configuration setRCVBUF(final Integer _soRcvBuf) {
+        Preconditions.checkNotNull(_soRcvBuf);
+        Preconditions.checkArgument(_soRcvBuf > 0);
+        this.soRcvBuf = _soRcvBuf;
         return this;
     }
 
-    public Configuration setREUSEADDR(final Boolean SO_REUSEADDR) {
-        Preconditions.checkNotNull(SO_REUSEADDR);
-        this.SO_REUSEADDR = SO_REUSEADDR;
+    /**
+     * Set socket Reuse address flag.
+     * @param _soReuseAddress - reuse address flag
+     * @return configuration object
+     */
+    public Configuration setREUSEADDR(final Boolean _soReuseAddress) {
+        Preconditions.checkNotNull(_soReuseAddress);
+        this.soReuseAddress = _soReuseAddress;
         return this;
     }
 
-    public Configuration setTCPNODELAY(final Boolean TCP_NODELAY) {
-        Preconditions.checkNotNull(TCP_NODELAY);
-        this.TCP_NODELAY = TCP_NODELAY;
+    /**
+     * Set socket TCP_NO_DELAY flag.
+     * @param _tcpNoDelay - flag value
+     * @return configuration object
+     */
+    public Configuration setTCPNODELAY(final Boolean _tcpNoDelay) {
+        Preconditions.checkNotNull(_tcpNoDelay);
+        this.tcpNoDelay = _tcpNoDelay;
         return this;
     }
 
-    public Configuration setMaxSessions(int _maxSessions) {
+    /**
+     * Set max online sessions parameter.
+     * @param _maxSessions - max sessions number
+     * @throws IllegalArgumentException - if _maxSessions < 0
+     * @return configuration object
+     */
+    public Configuration setMaxSessions(final int _maxSessions) {
         Preconditions.checkArgument(_maxSessions >= 0);
         maxSessions = _maxSessions;
         return this;
     }
 
+    /**
+     * Set command parser.
+     * @param _parser - parser object
+     * @throws NullPointerException - _parser parameter is null
+     * @return configuration object
+     */
     public Configuration setParser(final ICommandParserFactory _parser) {
         Preconditions.checkNotNull(_parser);
         parser = _parser;
@@ -90,56 +137,104 @@ public final class Configuration implements Cloneable {
     @Override
     public Object clone() {
         Configuration conf = new Configuration(this.address, this.port);
-        return conf.setRCVBUF(SO_RCVBUF).setSNDBUF(SO_SNDBUF).setREUSEADDR(SO_REUSEADDR).setTCPNODELAY(TCP_NODELAY).
+        return conf.setRCVBUF(soRcvBuf).setSoSndBuf(soSndBuf).setREUSEADDR(soReuseAddress).setTCPNODELAY(tcpNoDelay).
                 setMaxSessions(maxSessions).setParser(parser);
     }
 
+    /**
+     * Get IP address.
+     * @return address
+     */
     public InetAddress getAddress() {
         return address;
     }
 
+    /**
+     * Get port value.
+     * @return - port value
+     */
     public int getPort() {
         return port;
     }
 
-    public Integer getSO_SNDBUF() {
-        return SO_SNDBUF;
+    /**
+     * Get socket SND_BUF size parameter.
+     * @return SND_BUF size parameter
+     */
+    public Integer getSoSndBuf() {
+        return soSndBuf;
     }
 
-    public Integer getSO_RCVBUF() {
-        return SO_RCVBUF;
+    /**
+     * Get socket RCV buffer size parameter.
+     * @return RCV_BUF size
+     */
+    public Integer getSoRcvBuf() {
+        return soRcvBuf;
     }
 
-    public Boolean getSO_REUSEADDR() {
-        return SO_REUSEADDR;
+    /**
+     * Get socket reuse address option.
+     * @return socket reuse address option
+     */
+    public Boolean getSoReuseAaddr() {
+        return soReuseAddress;
     }
 
-    public Boolean getTCP_NODELAY() {
-        return TCP_NODELAY;
+    /**
+     * Get socket TCP NO_DELAY option.
+     * @return socket NO_DELAY option
+     */
+    public Boolean getTcpNoDelay() {
+        return tcpNoDelay;
     }
 
+    /**
+     * Get max allowed session value.
+     * @return - value
+     */
     public int getMaxSessions() {
         return maxSessions;
     }
 
+    /**
+     * Get command parser object.
+     * @return parser
+     */
     public ICommandParserFactory getParser() {
         return parser;
     }
 
+    /**
+     * Get greeting message.
+     * @return greeting message
+     */
     public String getGreeting() {
         return greeting;
     }
 
-    public void setGreeting(String greeting) {
-        Preconditions.checkNotNull(greeting);
-        this.greeting = greeting;
+    /**
+     * Set greeting message.
+     * @param _greeting - greeting message
+     */
+    public void setGreeting(final String _greeting) {
+        Preconditions.checkNotNull(_greeting);
+        this.greeting = _greeting;
     }
 
+    /**
+     * Get prompt message.
+     * @return prompt message
+     */
     public String getPrompt() {
         return prompt;
     }
 
-    public void setPrompt(String prompt) {
-        this.prompt = prompt;
+    /**
+     * Set prompt message.
+     * @param _prompt - prompt message
+     */
+    public void setPrompt(final String _prompt) {
+        this.prompt = _prompt;
     }
 }

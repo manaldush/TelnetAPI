@@ -11,9 +11,9 @@ public interface ICommandParserFactory {
     /**
      * Build parser for command.
      *
-     * @param cmd - string representation of command
+     * @param _cmd - string representation of command
      * @return parser for command
      * @throws ParseException - if command for string was not found
      */
-    ICommandParser build(String cmd) throws ParseException;
+    ICommandParser build(String _cmd) throws ParseException;
 }

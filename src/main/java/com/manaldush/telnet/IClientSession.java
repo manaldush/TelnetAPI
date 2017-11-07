@@ -20,9 +20,9 @@ public interface IClientSession {
     /**
      * Add byte to current read buffer of session.
      *
-     * @param b - byte
+     * @param _b - byte
      */
-    void addBuffer(byte b);
+    void addBuffer(byte _b);
 
     /**
      * Get buffer object.
@@ -34,14 +34,14 @@ public interface IClientSession {
     /**
      * Decode byte buffer, that was read from connection.
      *
-     * @param buffer - byte buffer
-     * @param bytesNum - number of read bytes
+     * @param _buffer - byte buffer
+     * @param _bytesNum - number of read bytes
      * @return list of read strings
      * @throws GeneralTelnetException - any telnet protocol error during
      * processing
      * @throws IOException - IO errors
      */
-    List<String> decode(ByteBuffer buffer, int bytesNum)
+    List<String> decode(ByteBuffer _buffer, int _bytesNum)
             throws GeneralTelnetException, IOException;
 
     /**
@@ -57,9 +57,9 @@ public interface IClientSession {
     /**
      * Create task from command and add it in queue for processing.
      *
-     * @param cmd - command
+     * @param _cmd - command
      */
-    void addTask(Command cmd);
+    void addTask(Command _cmd);
 
     /**
      * Abort output of current executed task.
@@ -80,18 +80,18 @@ public interface IClientSession {
     /**
      * Write message in connection.
      *
-     * @param msg - message
+     * @param _msg - message
      * @throws IOException - if IO problem occurred
      */
-    void write(String msg) throws IOException;
+    void write(String _msg) throws IOException;
 
     /**
      * Write bytes in connection.
      *
-     * @param b - bytes
+     * @param _b - bytes
      * @throws IOException - if IO problem occurred
      */
-    void write(byte[] b) throws IOException;
+    void write(byte[] _b) throws IOException;
 
     /**
      * Command for close session.
@@ -101,19 +101,19 @@ public interface IClientSession {
     /**
      * Return option.
      *
-     * @param val - option type
+     * @param _val - option type
      * @return - option state
      */
-    Option getOption(byte val);
+    Option getOption(byte _val);
 
     /**
      * Sub negotiation process.
      *
-     * @param val - value of option
-     * @param b - sub negotiation bytes between option value and SE command
-     * @param charset - compatible charset
+     * @param _val - value of option
+     * @param _b - sub negotiation bytes between option value and SE command
+     * @param _charset - compatible charset
      */
-    void subNegotiation(byte val, List<Byte> b, Charset charset);
+    void subNegotiation(byte _val, List<Byte> _b, Charset _charset);
 
     /**
      * Print prompt char.

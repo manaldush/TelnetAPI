@@ -9,21 +9,40 @@ import com.manaldush.telnet.Configuration;
 public final class ConfigurationWrapper implements Cloneable {
     private final Configuration conf;
     private final IServerSocketChannelFactory ssChannelFactory;
-    private ConfigurationWrapper(Configuration _conf, IServerSocketChannelFactory _ssChannelFactory) {
+    private ConfigurationWrapper(final Configuration _conf, final IServerSocketChannelFactory _ssChannelFactory) {
         conf = _conf;
         ssChannelFactory = _ssChannelFactory;
     }
 
-    public static ConfigurationWrapper build(Configuration _conf, IServerSocketChannelFactory _ssChannelFactory) {
+    /**
+     * Config file wrapper build method.
+     * @param _conf - configuration
+     * @param _ssChannelFactory - socket factory
+     * @throws NullPointerException - configuration is null
+     * @return wrapper
+     */
+    public static ConfigurationWrapper build(final Configuration _conf,
+                                             final IServerSocketChannelFactory _ssChannelFactory) {
         Preconditions.checkNotNull(_conf);
-        if (_ssChannelFactory == null) return new ConfigurationWrapper(_conf, new ImplServerSocketChannel());
-        else return new ConfigurationWrapper(_conf, _ssChannelFactory);
+        if (_ssChannelFactory == null) {
+            return new ConfigurationWrapper(_conf, new ImplServerSocketChannel());
+        } else {
+            return new ConfigurationWrapper(_conf, _ssChannelFactory);
+        }
     }
 
+    /**
+     * Get configuration.
+     * @return configuration object
+     */
     public Configuration getConf() {
         return conf;
     }
 
+    /**
+     * Get server socket factory object.
+     * @return factory
+     */
     public IServerSocketChannelFactory getSsChannelFactory() {
         return ssChannelFactory;
     }

@@ -80,7 +80,7 @@ public class DecoderTest {
         field.setAccessible(true);
         byte[] response = (byte[]) field.get(KeepAliveProcessor.class);
         ByteBuffer buffer = ByteBuffer.allocate(100);
-        byte[] cmd = {(byte)Constants.IAC, (byte)Constants.Are_You_There};
+        byte[] cmd = {(byte)Constants.IAC, (byte)Constants.ARE_YOU_THERE};
         buffer.put(cmd);
         List<String> decodedLines = decoder.decode(buffer, 2);
         Mockito.verify(session).write(response);
@@ -93,7 +93,7 @@ public class DecoderTest {
         IClientSession session = Mockito.mock(IClientSession.class);
         Decoder decoder = new Decoder(session);
         ByteBuffer buffer = ByteBuffer.allocate(100);
-        byte[] cmd = {(byte)Constants.IAC, (byte)Constants.Abort_Output};
+        byte[] cmd = {(byte)Constants.IAC, (byte)Constants.ABORT_OUTPUT};
         buffer.put(cmd);
         List<String> decodedLines = decoder.decode(buffer, 2);
         Mockito.verify(session).abortCurrentTask();
@@ -106,7 +106,7 @@ public class DecoderTest {
         IClientSession session = Mockito.mock(IClientSession.class);
         Decoder decoder = new Decoder(session);
         ByteBuffer buffer = ByteBuffer.allocate(100);
-        byte[] cmd = {(byte)Constants.IAC, (byte)Constants.Interrupt_Process};
+        byte[] cmd = {(byte)Constants.IAC, (byte)Constants.INTERRUPT_PROCESS};
         buffer.put(cmd);
         List<String> decodedLines = decoder.decode(buffer, 2);
         Mockito.verify(session).interruptCurrentTask();
@@ -119,7 +119,7 @@ public class DecoderTest {
         IClientSession session = Mockito.mock(IClientSession.class);
         Decoder decoder = new Decoder(session);
         ByteBuffer buffer = ByteBuffer.allocate(100);
-        byte[] cmd = {(byte)Constants.IAC, (byte)Constants.Erase_Line};
+        byte[] cmd = {(byte)Constants.IAC, (byte)Constants.ERASE_LINE};
         buffer.put(cmd);
         List<String> decodedLines = decoder.decode(buffer, 2);
         Mockito.verify(session).resetBuffer();
@@ -132,7 +132,7 @@ public class DecoderTest {
         IClientSession session = Mockito.mock(IClientSession.class);
         Decoder decoder = new Decoder(session);
         ByteBuffer buffer = ByteBuffer.allocate(100);
-        byte[] cmd = {(byte)Constants.IAC, (byte)Constants.Erase_character};
+        byte[] cmd = {(byte)Constants.IAC, (byte)Constants.ERASE_CHARACTER};
         buffer.put(cmd);
         List<String> decodedLines = decoder.decode(buffer, 2);
         Mockito.verify(session).eraseCharacter();
@@ -371,7 +371,7 @@ public class DecoderTest {
         IClientSession session = Mockito.mock(IClientSession.class);
         Decoder decoder = new Decoder(session);
         ByteBuffer buffer = ByteBuffer.allocate(100);
-        byte[] cmd = {(byte)Constants.IAC, (byte)Constants.Abort_Output, (byte)Constants.IAC, (byte)Constants.Interrupt_Process};
+        byte[] cmd = {(byte)Constants.IAC, (byte)Constants.ABORT_OUTPUT, (byte)Constants.IAC, (byte)Constants.INTERRUPT_PROCESS};
         buffer.put(cmd);
         List<String> decodedLines = decoder.decode(buffer, 4);
         Mockito.verify(session).abortCurrentTask();
@@ -386,7 +386,7 @@ public class DecoderTest {
         Decoder decoder = new Decoder(session);
         ByteBuffer buffer = ByteBuffer.allocate(100);
         buffer.put("test1\r\n".getBytes());
-        byte[] cmd = {(byte)Constants.IAC, (byte)Constants.Abort_Output, (byte)Constants.IAC, (byte)Constants.Interrupt_Process};
+        byte[] cmd = {(byte)Constants.IAC, (byte)Constants.ABORT_OUTPUT, (byte)Constants.IAC, (byte)Constants.INTERRUPT_PROCESS};
         buffer.put(cmd);
         buffer.put("test2\r\n".getBytes());
 

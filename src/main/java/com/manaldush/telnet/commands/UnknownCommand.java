@@ -10,9 +10,12 @@ import com.manaldush.telnet.protocol.Constants;
 
 import java.io.IOException;
 
+/**
+ * Execute when unknown command must be processed.
+ */
 public final class UnknownCommand implements ICommandProcessor {
     private IClientSession session;
-    private final static String LOG_UNKNOWN_COMMAND = "unknown command";
+    private static final String LOG_UNKNOWN_COMMAND = "unknown command";
 
     /**
      * Build UnknownCommand object.
@@ -20,12 +23,12 @@ public final class UnknownCommand implements ICommandProcessor {
      * @throws NullPointerException - if session is null object
      * @return UnknownCommand
      */
-    public static UnknownCommand build(IClientSession _session) {
+    public static UnknownCommand build(final IClientSession _session) {
         Preconditions.checkNotNull(_session);
         return new UnknownCommand(_session);
     }
 
-    private UnknownCommand(IClientSession _session) {
+    private UnknownCommand(final IClientSession _session) {
         session = _session;
     }
 

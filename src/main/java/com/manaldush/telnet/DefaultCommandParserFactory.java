@@ -17,12 +17,12 @@ final class DefaultCommandParserFactory implements ICommandParserFactory {
     /**
      * Build factory object.
      *
-     * @param cmd - string representation of command
+     * @param _cmd - string representation of command
      * @return command parser
      * @throws ParseException - any parse string error
      */
     @Override
-    public ICommandParser build(final String cmd) throws ParseException {
-        return DefaultCommandParser.build(cmd);
+    public ICommandParser build(final String _cmd) throws ParseException {
+        return DefaultCommandParser.build(_cmd);
     }
 }

@@ -19,5 +19,5 @@ interface IDecoder {
      * @throws GeneralTelnetException - any telnet error
      * @throws IOException -  I/O errors
      */
-    List<String> decode(final ByteBuffer _buffer, final int _bytesNum) throws GeneralTelnetException, IOException;
+    List<String> decode(ByteBuffer _buffer, int _bytesNum) throws GeneralTelnetException, IOException;
 }

@@ -1,5 +1,8 @@
+com.manaldush
 com.manaldush.telnet
 com.manaldush.telnet.commands
 com.manaldush.telnet.exceptions
+com.manaldush.telnet.options
 com.manaldush.telnet.protocol
 com.manaldush.telnet.protocol.processors
+com.manaldush.telnet.security

@@ -7,12 +7,18 @@ import com.google.common.base.Preconditions;
  * Created by Maxim.Melnikov on 06.06.2017.
  */
 public final class CommandOption {
-    private final static String OPTION_REGEXP = "[a-z]{1,5}";
+    /**Option name regexp.*/
+    private static final String OPTION_REGEXP = "[a-z]{1,5}";
     /**Name of option.*/
     private final String option;
     /**Option Description.*/
     private final String description;
 
+    /**
+     * Construct command option object.
+     * @param _option - option string name
+     * @param _description - description of option
+     */
     private CommandOption(final String _option, final String _description) {
         option = _option;
         description = _description;
@@ -22,6 +28,8 @@ public final class CommandOption {
      * Create option attribute for telnet command.
      * @param _option - name
      * @param _description - description
+     * @throws NullPointerException - if _option/_description is null
+     * @throws IllegalArgumentException - if _option/_description is empty or _option do not match regexp
      * @return - option
      */
     public static CommandOption build(final String _option, final String _description) {
@@ -33,10 +41,18 @@ public final class CommandOption {
         return new CommandOption(_option, _description);
     }
 
+    /**
+     * Get option name.
+     * @return option name
+     */
     public String getOption() {
         return option;
     }
 
+    /**
+     * Get description.
+     * @return description
+     */
     public String getDescription() {
         return description;
     }
@@ -47,11 +63,11 @@ public final class CommandOption {
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (!(obj instanceof CommandOption)) {
+    public boolean equals(final Object _obj) {
+        if (!(_obj instanceof CommandOption)) {
             return false;
         }
-        CommandOption option = (CommandOption) obj;
-        return option.getOption().compareTo(this.getOption()) == 0;
+        CommandOption opt = (CommandOption) _obj;
+        return opt.getOption().compareTo(this.getOption()) == 0;
     }
 }

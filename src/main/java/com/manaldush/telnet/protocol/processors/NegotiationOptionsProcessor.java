@@ -14,59 +14,82 @@ import java.io.IOException;
 public final class NegotiationOptionsProcessor implements ITelnetCommandProcessor {
     private final byte option;
     private final IClientSession session;
-    private enum COMMAND_TYPE {WILL, WILL_NOT, DO, DO_NOT}
-    private final COMMAND_TYPE cmd;
+    /**Types of telnet command negotiation option.*/
+    private enum CommandType { WILL, WILL_NOT, DO, DO_NOT }
+    private final CommandType cmd;
 
-    private NegotiationOptionsProcessor(COMMAND_TYPE _cmd, byte _option, IClientSession _session) {
+    private NegotiationOptionsProcessor(final CommandType _cmd, final byte _option, final IClientSession _session) {
         cmd = _cmd;
         option = _option;
         session = _session;
     }
 
-    public static NegotiationOptionsProcessor buildDO(final byte _option, IClientSession _session) {
-        return new NegotiationOptionsProcessor(COMMAND_TYPE.DO, _option, _session);
+    /**
+     * Create DO negotiation processor with option.
+     * @param _option - option
+     * @param _session - session
+     * @return negotiation processor
+     */
+    public static NegotiationOptionsProcessor buildDO(final byte _option, final IClientSession _session) {
+        return new NegotiationOptionsProcessor(CommandType.DO, _option, _session);
     }
 
-    public static NegotiationOptionsProcessor buildDONOT(final byte _option, IClientSession _session) {
-        return new NegotiationOptionsProcessor(COMMAND_TYPE.DO_NOT, _option, _session);
+    /**
+     * Create DO NOT negotiation processor with option.
+     * @param _option - option
+     * @param _session - session
+     * @return negotiation processor
+     */
+    public static NegotiationOptionsProcessor buildDONOT(final byte _option, final IClientSession _session) {
+        return new NegotiationOptionsProcessor(CommandType.DO_NOT, _option, _session);
     }
 
-    public static NegotiationOptionsProcessor buildWILL(final byte _option, IClientSession _session) {
-        return new NegotiationOptionsProcessor(COMMAND_TYPE.WILL, _option, _session);
+    /**
+     * Create WILL negotiation processor with option.
+     * @param _option - option
+     * @param _session - session
+     * @return negotiation processor
+     */
+    public static NegotiationOptionsProcessor buildWILL(final byte _option, final IClientSession _session) {
+        return new NegotiationOptionsProcessor(CommandType.WILL, _option, _session);
     }
 
-    public static NegotiationOptionsProcessor buildWILLNOT(final byte _option, IClientSession _session) {
-        return new NegotiationOptionsProcessor(COMMAND_TYPE.WILL_NOT, _option, _session);
+    /**
+     * Create WILL NOT negotiation processor with option.
+     * @param _option - option
+     * @param _session - session
+     * @return negotiation processor
+     */
+    public static NegotiationOptionsProcessor buildWILLNOT(final byte _option, final IClientSession _session) {
+        return new NegotiationOptionsProcessor(CommandType.WILL_NOT, _option, _session);
     }
 
     @Override
     public void process() throws IOException, GeneralTelnetException {
         Option opt = session.getOption(option);
-        if (cmd == COMMAND_TYPE.WILL) {
+        if (cmd == CommandType.WILL) {
             processWillCommand(opt);
-        } else if (cmd == COMMAND_TYPE.WILL_NOT) {
+        } else if (cmd == CommandType.WILL_NOT) {
             processWillNotCommand(opt);
-        } else if (cmd == COMMAND_TYPE.DO) {
+        } else if (cmd == CommandType.DO) {
             processDoCommand(opt);
-        } else if (cmd == COMMAND_TYPE.DO_NOT) {
+        } else if (cmd == CommandType.DO_NOT) {
             processDoNotCommand(opt);
         }
     }
 
-    private void processWillCommand(Option opt) throws IOException {
-        if (opt.isClientSupported()) {
-            if (opt.getClientState() == OptionState.DISABLE) {
+    private void processWillCommand(final Option _opt) throws IOException {
+        if (_opt.isClientSupported()) {
+            if (_opt.getClientState() == OptionState.DISABLE) {
                 // approve
                 byte[] response = {(byte) Constants.IAC, (byte) Constants.DO, option};
                 session.write(response);
-                opt.setClientState(OptionState.ENABLE);
-            } else if (opt.getClientState() == OptionState.ENABLING) {
-                opt.setClientState(OptionState.ENABLE);
-            } else if (opt.getClientState() == OptionState.ENABLE) {
-                // skip
-            } else if (opt.getClientState() == OptionState.DISABLING) {
+                _opt.setClientState(OptionState.ENABLE);
+            } else if (_opt.getClientState() == OptionState.ENABLING) {
+                _opt.setClientState(OptionState.ENABLE);
+            } else if (_opt.getClientState() == OptionState.DISABLING) {
                 // client want to continue use option
-                opt.setClientState(OptionState.ENABLE);
+                _opt.setClientState(OptionState.ENABLE);
             }
         } else {
             // not supported
@@ -75,37 +98,31 @@ public final class NegotiationOptionsProcessor implements ITelnetCommandProcesso
         }
     }
 
-    private void processWillNotCommand(Option opt) throws IOException {
-        if (opt.isClientSupported()) {
-            if (opt.getClientState() == OptionState.DISABLE) {
-                //skip
-            } else if (opt.getClientState() == OptionState.ENABLING) {
-                opt.setClientState(OptionState.DISABLE);
-            } else if (opt.getClientState() == OptionState.ENABLE) {
+    private void processWillNotCommand(final Option _opt) throws IOException {
+        if (_opt.isClientSupported()) {
+            if (_opt.getClientState() == OptionState.ENABLING) {
+                _opt.setClientState(OptionState.DISABLE);
+            } else if (_opt.getClientState() == OptionState.ENABLE) {
                 byte[] response = {(byte) Constants.IAC, (byte) Constants.DO_NOT, option};
                 session.write(response);
-                opt.setClientState(OptionState.DISABLE);
-            } else if (opt.getClientState() == OptionState.DISABLING) {
-                opt.setClientState(OptionState.DISABLE);
+                _opt.setClientState(OptionState.DISABLE);
+            } else if (_opt.getClientState() == OptionState.DISABLING) {
+                _opt.setClientState(OptionState.DISABLE);
             }
-        } else {
-            //skip
         }
     }
 
-    private void processDoCommand(Option opt) throws IOException {
-        if (opt.isServerSupported()) {
-            if (opt.getServerState() == OptionState.DISABLE) {
+    private void processDoCommand(final Option _opt) throws IOException {
+        if (_opt.isServerSupported()) {
+            if (_opt.getServerState() == OptionState.DISABLE) {
                 // approve
                 byte[] response = {(byte) Constants.IAC, (byte) Constants.WILL, option};
                 session.write(response);
-                opt.setServerState(OptionState.ENABLE);
-            } else if (opt.getServerState() == OptionState.ENABLING) {
-                opt.setServerState(OptionState.ENABLE);
-            } else if (opt.getServerState() == OptionState.ENABLE) {
-                // skip
-            } else if (opt.getServerState() == OptionState.DISABLING) {
-                opt.setServerState(OptionState.ENABLE);
+                _opt.setServerState(OptionState.ENABLE);
+            } else if (_opt.getServerState() == OptionState.ENABLING) {
+                _opt.setServerState(OptionState.ENABLE);
+            } else if (_opt.getServerState() == OptionState.DISABLING) {
+                _opt.setServerState(OptionState.ENABLE);
             }
         } else {
             // not supported
@@ -114,21 +131,17 @@ public final class NegotiationOptionsProcessor implements ITelnetCommandProcesso
         }
     }
 
-    private void processDoNotCommand(Option opt) throws IOException {
-        if (opt.isServerSupported()) {
-            if (opt.getServerState() == OptionState.DISABLE) {
-                //skip
-            } else if (opt.getServerState() == OptionState.ENABLING) {
-                opt.setServerState(OptionState.DISABLE);
-            } else if (opt.getServerState() == OptionState.ENABLE) {
+    private void processDoNotCommand(final Option _opt) throws IOException {
+        if (_opt.isServerSupported()) {
+            if (_opt.getServerState() == OptionState.ENABLING) {
+                _opt.setServerState(OptionState.DISABLE);
+            } else if (_opt.getServerState() == OptionState.ENABLE) {
                 byte[] response = {(byte) Constants.IAC, (byte) Constants.WILL_NOT, option};
                 session.write(response);
-                opt.setServerState(OptionState.DISABLE);
-            } else if (opt.getServerState() == OptionState.DISABLING) {
-                opt.setServerState(OptionState.DISABLE);
+                _opt.setServerState(OptionState.DISABLE);
+            } else if (_opt.getServerState() == OptionState.DISABLING) {
+                _opt.setServerState(OptionState.DISABLE);
             }
-        } else {
-            //skip
         }
     }
 }

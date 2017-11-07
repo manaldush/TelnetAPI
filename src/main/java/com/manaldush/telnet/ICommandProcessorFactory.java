@@ -8,9 +8,9 @@ package com.manaldush.telnet;
 public interface ICommandProcessorFactory {
     /**
      * Create command processor object.
-     * @param cmd - command object
-     * @param session - Session within which the command is called
+     * @param _cmd - command object
+     * @param _session - Session within which the command is called
      * @return command processor object
      */
-    ICommandProcessor build(Command cmd, IClientSession session);
+    ICommandProcessor build(Command _cmd, IClientSession _session);
 }

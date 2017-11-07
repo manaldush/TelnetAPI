@@ -21,7 +21,7 @@ public final class HelpCommand implements ICommandProcessor {
     private final IClientSession session;
     private final Map<String, CommandTemplate> commandTemplates;
 
-    private HelpCommand(IClientSession _session, Map<String, CommandTemplate> _commandTemplates) {
+    private HelpCommand(final IClientSession _session, final Map<String, CommandTemplate> _commandTemplates) {
         session = _session;
         commandTemplates = _commandTemplates;
     }
@@ -33,7 +33,8 @@ public final class HelpCommand implements ICommandProcessor {
      * @throws NullPointerException - if session or map of commandTemplates is null objects
      * @return - help command
      */
-    public static HelpCommand build(IClientSession _session, Map<String, CommandTemplate> _commandTemplates) {
+    public static HelpCommand build(final IClientSession _session,
+                                    final Map<String, CommandTemplate> _commandTemplates) {
         Preconditions.checkNotNull(_session);
         Preconditions.checkNotNull(_commandTemplates);
         return new HelpCommand(_session, _commandTemplates);
@@ -46,7 +47,9 @@ public final class HelpCommand implements ICommandProcessor {
      */
     @Override
     public void process() throws OperationException, IOException {
-        if (commandTemplates == null || commandTemplates.isEmpty()) return;
+        if (commandTemplates == null || commandTemplates.isEmpty()) {
+            return;
+        }
         for (Map.Entry<String, CommandTemplate> entry : commandTemplates.entrySet()) {
             printCommand(entry.getValue());
         }
@@ -62,7 +65,7 @@ public final class HelpCommand implements ICommandProcessor {
 
     }
 
-    private void printCommand(CommandTemplate _template) throws IOException {
+    private void printCommand(final CommandTemplate _template) throws IOException {
         session.write(_template.getFullDescription());
         session.write(Constants.CRLF);
     }

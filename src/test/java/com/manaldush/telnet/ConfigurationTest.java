@@ -14,7 +14,7 @@ public class ConfigurationTest {
     @Test
     public void test_1() throws UnknownHostException {
         Configuration conf = Configuration.build("localhost", 1000);
-        conf.setSNDBUF(2048);
+        conf.setSoSndBuf(2048);
         conf.setRCVBUF(2048);
         conf.setMaxSessions(10);
         conf.setREUSEADDR(Boolean.TRUE);
@@ -26,12 +26,12 @@ public class ConfigurationTest {
             }
         });
         Configuration conf2 = (Configuration) conf.clone();
-        assertTrue(conf2.getSO_REUSEADDR());
-        assertTrue(conf2.getTCP_NODELAY());
+        assertTrue(conf2.getSoReuseAaddr());
+        assertTrue(conf2.getTcpNoDelay());
         assertTrue(conf2.getPort() == 1000);
         assertTrue(conf2.getMaxSessions() == 10);
-        assertTrue(conf2.getSO_RCVBUF() == 2048);
-        assertTrue(conf2.getSO_SNDBUF() == 2048);
+        assertTrue(conf2.getSoRcvBuf() == 2048);
+        assertTrue(conf2.getSoSndBuf() == 2048);
         assertTrue(conf2.getAddress().getHostName().compareTo("localhost") == 0);
         assertTrue(conf2.getParser() != null);
     }

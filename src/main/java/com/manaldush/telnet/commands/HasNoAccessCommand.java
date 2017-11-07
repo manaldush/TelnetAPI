@@ -10,8 +10,11 @@ import com.manaldush.telnet.protocol.Constants;
 
 import java.io.IOException;
 
-public class HasNoAccessCommand implements ICommandProcessor {
-    private final static String HAS_NO_ACCESS_COMMAND = "do not have grants for execution command";
+/**
+ * Execute when user try to execute command and do not have enough garnts for this operation.
+ */
+public final class HasNoAccessCommand implements ICommandProcessor {
+    private static final String HAS_NO_ACCESS_COMMAND = "do not have grants for execution command";
     private final IClientSession session;
 
     /**
@@ -20,12 +23,12 @@ public class HasNoAccessCommand implements ICommandProcessor {
      * @throws NullPointerException - if session is null object
      * @return HasNoAccessCommand
      */
-    public static HasNoAccessCommand build(IClientSession _session) {
+    public static HasNoAccessCommand build(final IClientSession _session) {
         Preconditions.checkNotNull(_session);
         return new HasNoAccessCommand(_session);
     }
 
-    private HasNoAccessCommand(IClientSession _session) {
+    private HasNoAccessCommand(final IClientSession _session) {
         session = _session;
     }
 

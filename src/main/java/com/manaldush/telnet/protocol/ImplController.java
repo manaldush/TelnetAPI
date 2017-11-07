@@ -1,7 +1,6 @@
 package com.manaldush.telnet.protocol;
 
 import com.google.common.base.Preconditions;
-import com.manaldush.telnet.*;
 import com.manaldush.telnet.commands.HasNoAccessCommand;
 import com.manaldush.telnet.commands.HelpCommand;
 import com.manaldush.telnet.commands.QuitCommand;
@@ -11,6 +10,13 @@ import com.manaldush.telnet.exceptions.ConfigurationException;
 import com.manaldush.telnet.exceptions.GeneralTelnetException;
 import com.manaldush.telnet.security.AuthTelnetClientSession;
 import com.manaldush.telnet.security.Role;
+import com.manaldush.telnet.CommandTemplate;
+import com.manaldush.telnet.IController;
+import com.manaldush.telnet.Command;
+import com.manaldush.telnet.ICommandParser;
+import com.manaldush.telnet.IClientSession;
+import com.manaldush.telnet.ICommandProcessor;
+import com.manaldush.telnet.ICommandProcessorFactory;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -22,7 +28,12 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.text.ParseException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java .util.Iterator;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
 
 import static com.manaldush.telnet.protocol.Constants.CRLF;
@@ -32,15 +43,16 @@ import static com.manaldush.telnet.protocol.Constants.CRLF;
  * Created by Maxim.Melnikov on 22.06.2017.
  */
 public class ImplController implements IController<ConfigurationWrapper>, Runnable {
+    /**Available controller statuses.*/
     enum STATUS {
         STARTED, STOPPED, CONFIGURED, INITIALIZE,
     }
-    private final static SocketOption<Boolean> SO_REUSEADDR_OPT    = StandardSocketOptions.SO_REUSEADDR;
-    private final static SocketOption<Integer> SO_RCVBUF_OPT       = StandardSocketOptions.SO_RCVBUF;
-    private final static SocketOption<Integer> SO_SNDBUF_OPT       = StandardSocketOptions.SO_SNDBUF;
-    private final static SocketOption<Boolean> TCP_NODELAY_OPT     = StandardSocketOptions.TCP_NODELAY;
-    private final static SocketOption<Boolean> SO_KEEPALIVE_OPT    = StandardSocketOptions.SO_KEEPALIVE;
-    private final static byte[] LOG_SESSIONS_OVER_LIMIT = "sessions limit is over".getBytes();
+    private static final SocketOption<Boolean> SO_REUSEADDR_OPT    = StandardSocketOptions.SO_REUSEADDR;
+    private static final SocketOption<Integer> SO_RCVBUF_OPT       = StandardSocketOptions.SO_RCVBUF;
+    private static final SocketOption<Integer> SO_SNDBUF_OPT       = StandardSocketOptions.SO_SNDBUF;
+    private static final SocketOption<Boolean> TCP_NODELAY_OPT     = StandardSocketOptions.TCP_NODELAY;
+    private static final SocketOption<Boolean> SO_KEEPALIVE_OPT    = StandardSocketOptions.SO_KEEPALIVE;
+    private static final byte[] LOG_SESSIONS_OVER_LIMIT = "sessions limit is over".getBytes();
     private static final int DATA_PORTION = 10;
     private volatile ServerSocketChannel ss;
     private volatile ConfigurationWrapper conf;
@@ -54,21 +66,24 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
     private static final Command UNKNOWN_COMMAND = createUnknownCommand();
     private static final Command HAS_NO_ACCESS_COMMAND = createHasNoAccessCommand();
 
+    /**
+     * Implementation of controller.
+     */
     public ImplController() {
     }
 
     private void innerConfigure(final ConfigurationWrapper _conf) throws IOException {
         Preconditions.checkNotNull(_conf);
-        ConfigurationWrapper conf = (ConfigurationWrapper) _conf.clone();
-        ServerSocketChannel ss = _conf.getSsChannelFactory().build();
-        ss.setOption(SO_REUSEADDR_OPT, conf.getConf().getSO_REUSEADDR());
-        ss.setOption(SO_RCVBUF_OPT, conf.getConf().getSO_RCVBUF());
-        ss.bind(new InetSocketAddress(conf.getConf().getAddress(), conf.getConf().getPort()));
-        ss.configureBlocking(false);
+        ConfigurationWrapper c = (ConfigurationWrapper) _conf.clone();
+        ServerSocketChannel s = c.getSsChannelFactory().build();
+        s.setOption(SO_REUSEADDR_OPT, c.getConf().getSoReuseAaddr());
+        s.setOption(SO_RCVBUF_OPT, c.getConf().getSoRcvBuf());
+        s.bind(new InetSocketAddress(c.getConf().getAddress(), c.getConf().getPort()));
+        s.configureBlocking(false);
         selector = Selector.open();
-        ss.register(selector, SelectionKey.OP_ACCEPT);
-        this.conf = _conf;
-        this.ss = ss;
+        s.register(selector, SelectionKey.OP_ACCEPT);
+        conf = c;
+        ss = s;
     }
 
     /**
@@ -76,7 +91,7 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
      * @param _template - command template
      */
     @Override
-    public void register(CommandTemplate _template) {
+    public void register(final CommandTemplate _template) {
         Preconditions.checkNotNull(_template);
         commandTemplates.put(_template.getCommand(), _template);
     }
@@ -86,7 +101,7 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
      * @param _template - command template as CommandTemplate object
      */
     @Override
-    public void unregister(CommandTemplate _template) {
+    public void unregister(final CommandTemplate _template) {
         Preconditions.checkNotNull(_template);
         commandTemplates.remove(_template.getCommand());
     }
@@ -97,7 +112,7 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
      * @param _template - command template as string
      */
     @Override
-    public void unregister(String _template) {
+    public void unregister(final String _template) {
         Preconditions.checkNotNull(_template);
         commandTemplates.remove(_template);
     }
@@ -107,9 +122,15 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
      */
     @Override
     public synchronized void start() {
-        if (STATUS.INITIALIZE == status) throw new IllegalStateException("System has not been configured yet");
-        if (STATUS.STARTED == status) throw new IllegalStateException("System has been already started");
-        if (STATUS.STOPPED == status) throw new IllegalStateException("System has been already stopped");
+        if (STATUS.INITIALIZE == status) {
+            throw new IllegalStateException("System has not been configured yet");
+        }
+        if (STATUS.STARTED == status) {
+            throw new IllegalStateException("System has been already started");
+        }
+        if (STATUS.STOPPED == status) {
+            throw new IllegalStateException("System has been already stopped");
+        }
         registerDefaultCommands();
         executor = new Thread(this);
         status = STATUS.STARTED;
@@ -122,14 +143,19 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
     @Override
     public void stop() {
         synchronized (this) {
-            if (status == STATUS.STARTED) status = STATUS.STOPPED;
-            else return;
+            if (status == STATUS.STARTED) {
+                status = STATUS.STOPPED;
+            } else {
+                return;
+            }
         }
         selector.wakeup();
-        if (executor.isAlive()) try {
-            executor.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        if (executor.isAlive()) {
+            try {
+                executor.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -140,11 +166,13 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
      * @throws ParseException - parse Exception of incoming String, illegal options
      */
     @Override
-    public Command search(String _command) throws ParseException {
+    public Command search(final String _command) throws ParseException {
         ICommandParser parser = conf.getConf().getParser().build(_command);
         String cmdPart = parser.parseCommand();
         CommandTemplate template = commandTemplates.get(cmdPart);
-        if (template == null) return null;
+        if (template == null) {
+            return null;
+        }
         return Command.build(template, parser.parseOptions());
     }
 
@@ -153,7 +181,7 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
      * @param _conf - configuration object
      */
     @Override
-    public void configure(ConfigurationWrapper _conf) throws ConfigurationException {
+    public void configure(final ConfigurationWrapper _conf) throws ConfigurationException {
         synchronized (this) {
             if (status == STATUS.INITIALIZE) {
                 status = STATUS.CONFIGURED;
@@ -169,7 +197,7 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
     }
 
     @Override
-    public void run() {
+    public final void run() {
         try {
             while (status == STATUS.STARTED) {
                 processKeys();
@@ -196,21 +224,28 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
 
     private void processKeys() throws IOException, InterruptedException {
         selector.select();
-        if (status != STATUS.STARTED) return;
+        if (status != STATUS.STARTED) {
+            return;
+        }
         Set<SelectionKey> selectedKeys = selector.selectedKeys();
         Iterator<SelectionKey> iterator = selectedKeys.iterator();
         while (iterator.hasNext()) {
             SelectionKey key = iterator.next();
             if (key.isAcceptable()) {
                 SocketChannel client = ((ServerSocketChannel) key.channel()).accept();
-                if (client == null) continue;
+                if (client == null) {
+                    continue;
+                }
                 SelectionKey clientKey = configureClientSocket(client);
-                IClientSession session = new ImplTelnetClientSession(client, this, DATA_PORTION, clientKey, conf.getConf().getPrompt());
+                IClientSession session = new ImplTelnetClientSession(client, this, DATA_PORTION, clientKey,
+                        conf.getConf().getPrompt());
                 AuthTelnetClientSession authSession = new AuthTelnetClientSession(session);
                 boolean denySess = true;
                 synchronized (this) {
                     if (acceptSession()) {
-                        if (sessions.size() == 0) state.acquire();
+                        if (sessions.size() == 0) {
+                            state.acquire();
+                        }
                         sessions.put(client, authSession);
                         denySess = false;
                     }
@@ -223,14 +258,18 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
                 }
             } else if (key.isReadable()) {
                 SocketChannel client = (SocketChannel) key.channel();
-                if (client == null) continue;
+                if (client == null) {
+                    continue;
+                }
                 AuthTelnetClientSession authSession;
                 IClientSession session;
                 synchronized (this) {
                     authSession = sessions.get(client);
                 }
                 // Check Session was reset
-                if (authSession == null) continue;
+                if (authSession == null) {
+                    continue;
+                }
                 session = authSession.getSession();
                 try {
                     if (!authSession.hasUserName()) {
@@ -272,12 +311,12 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         }
     }
 
-    private SelectionKey configureClientSocket(SocketChannel _channel) throws IOException {
+    private SelectionKey configureClientSocket(final SocketChannel _channel) throws IOException {
         _channel.configureBlocking(false);
-        _channel.setOption(SO_REUSEADDR_OPT, conf.getConf().getSO_REUSEADDR());
-        _channel.setOption(SO_RCVBUF_OPT, conf.getConf().getSO_RCVBUF());
-        _channel.setOption(SO_SNDBUF_OPT, conf.getConf().getSO_SNDBUF());
-        _channel.setOption(TCP_NODELAY_OPT, conf.getConf().getTCP_NODELAY());
+        _channel.setOption(SO_REUSEADDR_OPT, conf.getConf().getSoReuseAaddr());
+        _channel.setOption(SO_RCVBUF_OPT, conf.getConf().getSoRcvBuf());
+        _channel.setOption(SO_SNDBUF_OPT, conf.getConf().getSoSndBuf());
+        _channel.setOption(TCP_NODELAY_OPT, conf.getConf().getTcpNoDelay());
         _channel.setOption(SO_KEEPALIVE_OPT, true);
         return _channel.register(selector, SelectionKey.OP_READ);
     }
@@ -291,17 +330,20 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         return false;
     }
 
-    synchronized void resetSession(SocketChannel _channel) throws IOException {
+    synchronized void resetSession(final SocketChannel _channel) throws IOException {
         sessions.remove(_channel);
         _channel.close();
-        if (sessions.size() == 0) state.release();
+        if (sessions.size() == 0) {
+            state.release();
+        }
         sessionsNumber--;
     }
 
-    private List<String> readData(SocketChannel _channel, IClientSession _session) throws IOException, GeneralTelnetException {
+    private List<String> readData(final SocketChannel _channel, final IClientSession _session)
+            throws IOException, GeneralTelnetException {
         ByteBuffer buffer = ByteBuffer.allocate(DATA_PORTION);
         List<String> lines = new ArrayList<>();
-        for(;;) {
+        for (;;) {
             int numberBytes = _channel.read(buffer);
             if (numberBytes == DATA_PORTION) {
                 lines.addAll(_session.decode(buffer, DATA_PORTION));
@@ -318,12 +360,14 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
         return lines;
     }
 
-    private void addTasks(List<String> _lines, AuthTelnetClientSession _session) throws IOException {
-        if (_lines == null || _lines.size() == 0) return;
+    private void addTasks(final List<String> _lines, final AuthTelnetClientSession _session) throws IOException {
+        if (_lines == null || _lines.size() == 0) {
+            return;
+        }
         Iterator<String> iterator = _lines.iterator();
-        while(iterator.hasNext()) {
+        while (iterator.hasNext()) {
             String line = iterator.next();
-            if (line== null || line.isEmpty()) {
+            if (line == null || line.isEmpty()) {
                 _session.getSession().prompt();
                 continue;
             }
@@ -351,7 +395,7 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
     private void registerQuitCommand() {
         CommandTemplate quit = CommandTemplate.build("quit", "close session", new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd, final IClientSession _session) {
+            public ICommandProcessor build(final Command _cmd, final IClientSession _session) {
                 return QuitCommand.build(_session);
             }
         });
@@ -360,9 +404,10 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
     }
 
     private void registerHelpCommand() {
-        CommandTemplate help = CommandTemplate.build("help", "help command, describe all commands", new ICommandProcessorFactory() {
+        CommandTemplate help = CommandTemplate.build("help", "help command, describe all commands",
+                new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd, IClientSession _session) {
+            public ICommandProcessor build(final Command _cmd, final IClientSession _session) {
                 return HelpCommand.build(_session, new HashMap<>(commandTemplates));
             }
         });
@@ -371,9 +416,10 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
     }
 
     private static Command createUnknownCommand() {
-        CommandTemplate unknownCommand = CommandTemplate.build("unknown command", "unknown command", new ICommandProcessorFactory() {
+        CommandTemplate unknownCommand = CommandTemplate.build("unknown command", "unknown command",
+                new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd, IClientSession _session) {
+            public ICommandProcessor build(final Command _cmd, final IClientSession _session) {
                 return UnknownCommand.build(_session);
             }
         });
@@ -381,20 +427,21 @@ public class ImplController implements IController<ConfigurationWrapper>, Runnab
     }
 
     private static Command createHasNoAccessCommand() {
-        final CommandTemplate hasNoAccessCommand = CommandTemplate.build("has no access", "has no access", new ICommandProcessorFactory() {
+        final CommandTemplate hasNoAccessCommand = CommandTemplate.build("has no access",
+                "has no access", new ICommandProcessorFactory() {
             @Override
-            public ICommandProcessor build(Command _cmd, IClientSession _session) {
+            public ICommandProcessor build(final Command _cmd, final IClientSession _session) {
                 return HasNoAccessCommand.build(_session);
             };
         });
         return Command.build(hasNoAccessCommand);
     }
 
-    private void getUserName(IClientSession _session) throws IOException {
+    private void getUserName(final IClientSession _session) throws IOException {
         _session.write("username:");
     }
 
-    private void getPassword(IClientSession _session) throws IOException {
+    private void getPassword(final IClientSession _session) throws IOException {
         _session.write("password:");
     }
 }

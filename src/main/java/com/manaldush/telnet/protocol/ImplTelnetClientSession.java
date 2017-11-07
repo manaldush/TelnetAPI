@@ -10,8 +10,6 @@ import com.manaldush.telnet.exceptions.OperationException;
 import com.manaldush.telnet.options.DefaultOption;
 import com.manaldush.telnet.options.NotSupportedOption;
 import com.manaldush.telnet.options.Option;
-import com.manaldush.telnet.options.OptionState;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
@@ -22,30 +20,56 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.manaldush.telnet.protocol.Constants.BYTE_FF;
 import static com.manaldush.telnet.protocol.Constants.CRLF;
 
 /**
  * Implementation of IClientSession interface.
+ *
  * Created by Maxim.Melnikov on 22.06.2017.
  */
 final class ImplTelnetClientSession implements IClientSession {
+    /**Default charset of transport data.*/
     private static final Charset DEFAULT_CHARSET = Charset.forName("ASCII");
+    /**Buffer of read data.*/
     private ByteBuffer buffer = null;
+    /**List of tasks that processed incoming commands.*/
     private final List<ICommandProcessor> tasks = new ArrayList<>();
+    /**Socket object.*/
     private final SocketChannel channel;
+    /**Telnet controller.*/
     private final ImplController controller;
+    /**Init buffer size. When size of read data is more than initBufferSize, re-allocate buffer
+     * size = buffer size + initBufferSize.*/
     private final int initBufferSize;
+    /**Used for catch event of incoming data in socket.*/
     private final SelectionKey key;
+    /**Current processing command.*/
     private ICommandProcessor currentTask = null;
+    /**Current thread, processing commands.*/
     private Thread currentThread;
+    /**Execute tasks in thread currentThread.*/
     private TaskExecutor executor;
+    /**Should stop.*/
     private boolean stop = false;
+    /**Decoder of incoming data.*/
     private IDecoder decoder;
+    /**Prompt chars.*/
     private final String prompt;
+    /**Available telnet protocol options.*/
     private final Map<Integer, Option> options;
 
+    /**
+     * Construct implementation of telnet client session.
+     *
+     * @param _channel - socket channel
+     * @param _controller - controller
+     * @param _initBufferSize - init buffer size
+     * @param _key - selection key
+     * @param _prompt - prompt chars
+     */
     ImplTelnetClientSession(final SocketChannel _channel, final ImplController _controller, final int _initBufferSize,
-                            SelectionKey _key, String _prompt) {
+                            final SelectionKey _key, final String _prompt) {
         channel = _channel;
         controller = _controller;
         initBufferSize = _initBufferSize;
@@ -58,11 +82,14 @@ final class ImplTelnetClientSession implements IClientSession {
 
     /**
      * Add buffer to current read buffer of session.
+     *
      * @param _b - byte
      */
     @Override
-    public void addBuffer(byte _b) {
-        if (buffer == null) buffer = ByteBuffer.allocate(initBufferSize);
+    public void addBuffer(final byte _b) {
+        if (buffer == null) {
+            buffer = ByteBuffer.allocate(initBufferSize);
+        }
         if (buffer.remaining() > 0) {
             buffer.put(_b);
         } else {
@@ -81,7 +108,9 @@ final class ImplTelnetClientSession implements IClientSession {
     @Override
     public ByteBuffer getBuffer() {
         //return copy
-        if (buffer == null) return null;
+        if (buffer == null) {
+            return null;
+        }
         ByteBuffer nbuffer = ByteBuffer.allocate(buffer.capacity());
         nbuffer.put(buffer.array());
         nbuffer.position(buffer.position());
@@ -97,9 +126,12 @@ final class ImplTelnetClientSession implements IClientSession {
      * @throws IOException - IO errors
      */
     @Override
-    public List<String> decode(final ByteBuffer _buffer, final int _bytesNum) throws GeneralTelnetException, IOException {
+    public List<String> decode(final ByteBuffer _buffer, final int _bytesNum)
+            throws GeneralTelnetException, IOException {
         synchronized (this) {
-            if (stop) return null;
+            if (stop) {
+                return null;
+            }
         }
         return decoder.decode(_buffer, _bytesNum);
     }
@@ -117,10 +149,14 @@ final class ImplTelnetClientSession implements IClientSession {
      */
     @Override
     public void eraseCharacter() {
-        if (buffer == null) return;
-        if (buffer.position() == 0) return;
-        buffer.put(buffer.position(),(byte)0);
-        buffer.position(buffer.position()-1);
+        if (buffer == null) {
+            return;
+        }
+        if (buffer.position() == 0) {
+            return;
+        }
+        buffer.put(buffer.position(), (byte) 0);
+        buffer.position(buffer.position() - 1);
     }
 
     /**
@@ -128,29 +164,38 @@ final class ImplTelnetClientSession implements IClientSession {
      * @param _cmd - command
      */
     @Override
-    public void addTask(Command _cmd) {
+    public void addTask(final Command _cmd) {
         ICommandProcessor task =
                 _cmd.getTemplate().getCommandProcessorFactory().build(_cmd, this);
         boolean thrStart = false;
         synchronized (this) {
-            if (stop) return;
+            if (stop) {
+                return;
+            }
             tasks.add(task);
             if (currentThread == null) {
                 currentThread = new Thread(new TaskExecutor());
                 thrStart = true;
             }
         }
-        if (thrStart) currentThread.start();
+        if (thrStart) {
+            currentThread.start();
+        }
     }
 
     /**
      * Abort output of current executed task.
-     * @throws AbortOutputProcessException - if some error occured during processing output abort in current executed task
+     * @throws AbortOutputProcessException - if some error occurred during processing output abort
+     * in current executed task
      */
     @Override
     public synchronized void abortCurrentTask() throws AbortOutputProcessException {
-        if (stop) return;
-        if (currentTask == null) return;
+        if (stop) {
+            return;
+        }
+        if (currentTask == null) {
+            return;
+        }
         currentTask.abortOutput();
     }
 
@@ -160,8 +205,12 @@ final class ImplTelnetClientSession implements IClientSession {
      */
     @Override
     public synchronized void interruptCurrentTask() throws InterruptProcessException {
-        if (stop) return;
-        if (currentTask == null) return;
+        if (stop) {
+            return;
+        }
+        if (currentTask == null) {
+            return;
+        }
         currentTask.interruptProcess();
     }
 
@@ -171,12 +220,12 @@ final class ImplTelnetClientSession implements IClientSession {
      * @throws IOException - if IO problem occured
      */
     @Override
-    public void write(String _msg) throws IOException {
+    public void write(final String _msg) throws IOException {
         byte[] b = str2Bytes(_msg);
-        ByteBuffer buffer = ByteBuffer.allocate(b.length);
-        buffer.put(b);
-        buffer.flip();
-        innerWrite(buffer);
+        ByteBuffer buf = ByteBuffer.allocate(b.length);
+        buf.put(b);
+        buf.flip();
+        innerWrite(buf);
     }
 
     /**
@@ -185,23 +234,23 @@ final class ImplTelnetClientSession implements IClientSession {
      * @throws IOException - if IO problem occured
      */
     @Override
-    public void write(byte[] _b) throws IOException {
-        ByteBuffer buffer = ByteBuffer.allocate(_b.length);
-        buffer.put(_b);
-        buffer.flip();
-        innerWrite(buffer);
+    public void write(final byte[] _b) throws IOException {
+        ByteBuffer buf = ByteBuffer.allocate(_b.length);
+        buf.put(_b);
+        buf.flip();
+        innerWrite(buf);
     }
 
-    private void innerWrite(ByteBuffer buffer) throws IOException {
+    private void innerWrite(final ByteBuffer _buffer) throws IOException {
         try {
-            channel.write(buffer);
+            channel.write(_buffer);
         } catch (IOException ex) {
             close();
             throw ex;
         }
     }
 
-    private byte[] str2Bytes(String _msg) {
+    private byte[] str2Bytes(final String _msg) {
         return _msg.getBytes(DEFAULT_CHARSET);
     }
 
@@ -220,8 +269,8 @@ final class ImplTelnetClientSession implements IClientSession {
      * @return - option state
      */
     @Override
-    public Option getOption(byte _val) {
-        return options.get(_val & 0xFF);
+    public Option getOption(final byte _val) {
+        return options.get(_val & BYTE_FF);
     }
 
     /**
@@ -232,8 +281,8 @@ final class ImplTelnetClientSession implements IClientSession {
      * @param _charset
      */
     @Override
-    public void subNegotiation(byte _val, List<Byte> _b, Charset _charset) {
-        options.get(_val & 0xFF).setSubnegotiation(_b, this, _charset);
+    public void subNegotiation(final byte _val, final List<Byte> _b, final Charset _charset) {
+        options.get(_val & BYTE_FF).setSubnegotiation(_b, this, _charset);
     }
 
     @Override
@@ -244,7 +293,9 @@ final class ImplTelnetClientSession implements IClientSession {
     }
 
     private void innerClose() {
-        if (stop) return;
+        if (stop) {
+            return;
+        }
         key.cancel();
         if (executor == null) {
             this.resetSession();
@@ -260,14 +311,17 @@ final class ImplTelnetClientSession implements IClientSession {
         }
     }
 
+    /**
+     * Thread used for execution telnet tasks.
+     */
     private class TaskExecutor implements Runnable {
 
         @Override
         public void run() {
-            for(;;) {
+            for (;;) {
                 synchronized (ImplTelnetClientSession.this) {
                     currentTask = null;
-                    if (ImplTelnetClientSession.this.stop){
+                    if (ImplTelnetClientSession.this.stop) {
                         executor = null;
                         ImplTelnetClientSession.this.resetSession();
                         currentThread = null;
@@ -299,8 +353,8 @@ final class ImplTelnetClientSession implements IClientSession {
     }
 
     private void initOptions() {
-        for(byte b = Byte.MIN_VALUE; b < Byte.MAX_VALUE; b++) {
-            int i = b & 0xFF;
+        for (byte b = Byte.MIN_VALUE; b < Byte.MAX_VALUE; b++) {
+            int i = b & BYTE_FF;
             switch (i) {
                 case Constants.OPT_SUPPRESS_GO_AHEAD:
                     options.put(i, new DefaultOption(b, false, true));

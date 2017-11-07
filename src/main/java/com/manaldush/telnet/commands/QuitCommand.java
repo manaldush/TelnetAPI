@@ -17,7 +17,7 @@ public final class QuitCommand implements ICommandProcessor {
 
     private IClientSession session;
 
-    private QuitCommand(IClientSession _session) {
+    private QuitCommand(final IClientSession _session) {
         session = _session;
     }
 
@@ -27,7 +27,7 @@ public final class QuitCommand implements ICommandProcessor {
      * @throws NullPointerException - if session is null object
      * @return QuitCommand
      */
-    public static QuitCommand build(IClientSession _session) {
+    public static QuitCommand build(final IClientSession _session) {
         Preconditions.checkNotNull(_session);
         return new QuitCommand(_session);
     }
